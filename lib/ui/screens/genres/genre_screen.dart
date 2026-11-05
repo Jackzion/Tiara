@@ -2,11 +2,9 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:movies/data/models/anime.dart';
-import 'package:movies/data/models/genre_state.dart';
 import 'package:movies/providers.dart';
 import 'package:movies/router/app_routes.dart';
-import 'package:movies/ui/anime_viewmodel.dart';
+import 'package:movies/state/genre_controller.dart';
 import 'package:movies/ui/screens/genres/sort_picker.dart';
 import 'package:movies/ui/theme/theme.dart';
 import 'package:movies/ui/screens/genres/genre_search_row.dart';
@@ -14,10 +12,6 @@ import 'package:movies/ui/screens/genres/genre_section.dart';
 import 'package:movies/ui/widgets/sliver_divider.dart';
 import 'package:movies/ui/widgets/vert_anime_list.dart';
 import 'package:movies/ui/widgets/not_ready.dart';
-import 'package:movies/utils/utils.dart';
-
-/// 选中类型存储键
-const String genreStringKey = 'GenreKey';
 
 /// 类型页面
 /// 展示动漫类型列表和对应类型的动漫
@@ -31,15 +25,12 @@ class GenreScreen extends ConsumerStatefulWidget {
 }
 
 class _GenreScreenState extends ConsumerState<GenreScreen> {
-  late AnimeViewModel animeViewModel;
-  List<GenreState> genreStates = [];
-  List<Anime> currentAnimeList = [];
+  /// 本页控制器（类型 chip 选中态 + 当前搜索结果）
+  late final GenreController genreController =
+      GenreController(ref.read(animeRepositoryProvider));
+
   String _lastSearchedText = '';
   List<String> _lastSearchedTag = [];
-  Sorting selectedSort = Sorting.aToz;
-
-  /// 类型列表是否已初始化（避免每次 build 清空重建）
-  bool _genreStateReady = false;
 
   @override
   void dispose() {
@@ -48,12 +39,12 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final animeViewModelAsync = ref.watch(animeViewModelProvider);
-    return animeViewModelAsync.when(
+    // 数据层就绪（标签预热完成）后才渲染
+    final dataReadyAsync = ref.watch(dataReadyProvider);
+    return dataReadyAsync.when(
       error: (e, st) => Text(e.toString()),
       loading: () => const NotReady(),
-      data: (viewModel) {
-        animeViewModel = viewModel;
+      data: (_) {
         ensureGenreState();
         return buildScreen();
       },
@@ -62,63 +53,33 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
 
   /// 仅在首次拿到类型数据时初始化，后续 rebuild 不再 clear
   void ensureGenreState() {
-    if (_genreStateReady) {
-      return;
+    if (genreController.ensureGenreState()) {
+      // 异步恢复本地选中项
+      restoreSelectedGenres();
     }
-    final genres = animeViewModel.animeGenres;
-    if (genres == null || genres.isEmpty) {
-      return;
-    }
-    genreStates = [
-      for (final genre in genres) GenreState(genre: genre, isSelected: false),
-    ];
-    _genreStateReady = true;
-    // 异步恢复本地选中项
-    restoreSelectedGenres();
   }
 
   /// 从本地存储恢复选中状态（只改 isSelected，不重建列表）
   Future<void> restoreSelectedGenres() async {
     final prefs = await ref.read(prefsProvider.future);
-    final raw = prefs.getString(genreStringKey);
-    if (raw == null || raw.isEmpty) {
+    await genreController.restoreSelectedGenres(prefs);
+    if (!mounted) {
       return;
     }
-    final selectedNames = raw.split(',').where((s) => s.isNotEmpty).toSet();
-    if (!mounted || selectedNames.isEmpty) {
-      return;
-    }
-    setState(() {
-      genreStates = [
-        for (final state in genreStates)
-          state.copyWith(isSelected: selectedNames.contains(state.genre.name)),
-      ];
-    });
+    setState(() {});
   }
 
   /// 仅保存已选中的类型名
   Future<void> saveSelectedGenres() async {
     final prefs = await ref.read(prefsProvider.future);
-    final selectedNames = genreStates
-        .where((state) => state.isSelected)
-        .map((state) => state.genre.name)
-        .toList();
-    prefs.setString(genreStringKey, selectedNames.join(','));
+    await genreController.saveSelectedGenres(prefs);
   }
 
-  /// 仅保存已选中的类型名
+  /// 把选中的类型同步到跨页 searchTagProvider
   void updateSearchTags() {
     final notifier = ref.read(searchTagProvider.notifier);
-    final searchTags = List<String>.from(
-      ref.read(searchTagProvider.notifier).state,
-    );
-    // get selected tags
-    final selectedNames = genreStates
-        .where((state) => state.isSelected)
-        .map((state) => state.genre.name)
-        .toList();
     // 必须赋一个新列表实例，GenreScreen 的 watch 才能感知变化
-    notifier.state = selectedNames;
+    notifier.state = genreController.selectedNames();
   }
 
   Widget buildScreen() {
@@ -130,7 +91,7 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
     // 列表按内容比较（引用比较会每次 rebuild 都判为变化）
     final tagChanged = !listEquals(searchTag, _lastSearchedTag);
 
-    // textChanged ||| tagChanged 才触发 search()
+    // textChanged || tagChanged 才触发 search()
     if (textChanged || tagChanged) {
       _lastSearchedText = searchText; // 只读记忆，没有任何地方会"回写"它
       _lastSearchedTag = List<String>.from(searchTag);
@@ -140,7 +101,7 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
       if (!hasText && !hasTag) {
         return SafeArea(child: _genreBody(context));
       }
-      currentAnimeList = [];
+      genreController.currentAnimeList = [];
       expandedNotifier.value = false;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         search();
@@ -180,14 +141,14 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
                   valueListenable: expandedNotifier,
                   builder: (BuildContext context, bool value, Widget? child) {
                     return GenreSection(
-                      genreStates: genreStates,
+                      genreStates: genreController.genreStates,
                       isExpanded: value,
                       onGenresExpanded: (expanded) {
                         expandedNotifier.value = expanded;
                       },
                       onGenresSelected: (fullList) {
                         // 保持全量列表，只同步选中状态
-                        genreStates = fullList;
+                        genreController.genreStates = fullList;
                         // update searchTags provider
                         updateSearchTags();
                         // update prefs
@@ -198,15 +159,15 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
                 ),
                 const SliverDivider(),
                 SortPicker(
-                  selectedSort: selectedSort,
+                  selectedSort: genreController.selectedSort,
                   onSortSelected: (sorting) {
-                    selectedSort = sorting;
+                    genreController.selectedSort = sorting;
                     setState(() {});
                   },
                   useSliver: true,
                 ),
                 VerticalAnimeList(
-                  animes: currentAnimeList,
+                  animes: genreController.currentAnimeList,
                   onAnimeTap: (animeId) {
                     context.router.push(AnimeDetailRoute(animeId: animeId));
                   },
@@ -224,30 +185,11 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
     final query = ref.read(searchTextProvider).trim();
     // read tag provider（可能有多个，逐个并入）
     final searchTags = ref.read(searchTagProvider);
-    final selectedTags = genreStates
-        .where((state) => state.isSelected)
-        .map((state) => state.genre.name)
-        .toList();
-    // 搜索 tags 并入最新 genres（已选同名时去重）
-    for (final tag in searchTags) {
-      if (tag.trim().isNotEmpty && !selectedTags.contains(tag)) {
-        selectedTags.add(tag);
-      }
-    }
-    // 关键字与标签都为空时不打请求（支持仅 tag 的搜索）
-    if (query.isEmpty && selectedTags.isEmpty) {
-      return;
-    }
-    final animeList = await animeViewModel.searchAnimes(
-      query,
-      1,
-      selectedTags.isEmpty ? null : selectedTags,
-    );
-    if (!mounted) {
+    final requested = await genreController.search(query, searchTags);
+    if (!requested || !mounted) {
       return;
     }
     setState(() {
-      currentAnimeList = animeList ?? [];
       expandedNotifier.value = true;
     });
   }

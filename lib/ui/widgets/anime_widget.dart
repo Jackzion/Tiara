@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:movies/data/models/anime.dart';
 import 'package:movies/providers.dart';
-import 'package:movies/ui/anime_viewmodel.dart';
 import 'package:movies/utils/utils.dart';
 import 'package:movies/ui/theme/theme.dart';
 
@@ -38,9 +37,6 @@ class AnimeWidget extends ConsumerStatefulWidget {
   /// 动漫数据对象
   final Anime anime;
 
-  /// 动漫视图模型（收藏状态与横幅补充数据）
-  final AnimeViewModel animeViewModel;
-
   /// 点击回调函数
   final OnAnimeTap onAnimeTap;
 
@@ -52,7 +48,6 @@ class AnimeWidget extends ConsumerStatefulWidget {
 
   const AnimeWidget({
     required this.anime,
-    required this.animeViewModel,
     required this.onAnimeTap,
     required this.animeType,
     this.expanded = false,
@@ -73,7 +68,7 @@ class _AnimeWidgetState extends ConsumerState<AnimeWidget> {
     // 根据动漫地址和类型生成唯一的 Hero 标签
     uniqueHeroTag = widget.anime.imageUrl + widget.animeType.name;
     // 按需加载宽幅横幅（AniList，带缓存），供展开态使用
-    widget.animeViewModel.ensureExtras(widget.anime).then((_) {
+    ref.read(animeRepositoryProvider).ensureExtras(widget.anime).then((_) {
       if (mounted) {
         setState(() {});
       }
@@ -341,14 +336,14 @@ class _AnimeWidgetState extends ConsumerState<AnimeWidget> {
 
   /// 操作按钮：收藏 + 播放
   Widget buildActions(BuildContext context, Anime anime) {
-    final favoriteSelected = widget.animeViewModel.isFavorite(anime.animeId);
+    final favoriteSelected = ref.read(favoriteRepositoryProvider).isFavorite(anime.animeId);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         // 收藏按钮
         GestureDetector(
           onTap: () {
-            widget.animeViewModel.toggleFavorite(anime);
+            ref.read(favoriteRepositoryProvider).toggleFavorite(anime);
             setState(() {});
           },
           child: Container(

@@ -1,14 +1,15 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:movies/data/api/anilist_api_service.dart';
+import 'package:movies/data/api/bangumi_api_service.dart';
 import 'package:movies/data/database/drift/drift_database.dart';
 import 'package:movies/data/database/models/database_interface.dart';
-import 'package:movies/data/database/repositories/rules_repository.dart';
-import 'package:movies/network/anilist_api_service.dart';
-import 'package:movies/network/bangumi_api_service.dart';
+import 'package:movies/data/repositories/anime_repository.dart';
+import 'package:movies/data/repositories/favorite_repository.dart';
+import 'package:movies/data/repositories/rules_repository.dart';
 import 'package:movies/network/rule_engine.dart';
 import 'package:movies/router/app_routes.dart';
 import 'package:movies/services/video_source/webview_video_source_service.dart';
-import 'package:movies/ui/anime_viewmodel.dart';
+import 'package:movies/state/home_controller.dart';
 import 'package:movies/utils/prefs.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -43,23 +44,37 @@ Future<Prefs> prefs(Ref ref) async {
 
 /// Drift 数据库提供者
 @Riverpod(keepAlive: true)
-Future<IDatabase> driftDatabase(Ref ref) async {
-  return DriftDatabase();
+IDatabase driftDatabase(Ref ref) => DriftDatabase();
+
+/// 动漫数据仓库提供者（取数 + 缓存，无页面状态）
+@Riverpod(keepAlive: true)
+AnimeRepository animeRepository(Ref ref) => AnimeRepository(
+      bangumiApiService: ref.read(bangumiApiServiceProvider),
+      aniListApiService: ref.read(anilistApiServiceProvider),
+      database: ref.read(driftDatabaseProvider),
+      prefs: ref.read(prefsProvider.future),
+    );
+
+/// 收藏仓库提供者（收藏 CRUD + 内存缓存）
+@Riverpod(keepAlive: true)
+FavoriteRepository favoriteRepository(Ref ref) => FavoriteRepository(
+      database: ref.read(driftDatabaseProvider),
+      animeRepository: ref.read(animeRepositoryProvider),
+    );
+
+/// 数据层就绪门：各仓库 setup（标签/收藏/补充缓存预热）完成后 UI 才渲染
+/// 替代原 AnimeViewModel.setup() 的启动编排
+@Riverpod(keepAlive: true)
+Future<void> dataReady(Ref ref) async {
+  await ref.read(animeRepositoryProvider).setup();
+  await ref.read(favoriteRepositoryProvider).setup();
 }
 
-/// 动漫视图模型提供者
-/// 异步加载，等待 setup 完成后返回 AnimeViewModel
+/// 首页控制器（四个横栏列表 + 一次性加载）
+/// keepAlive：列表在会话内复用，切换 Tab 不重新拉接口
 @Riverpod(keepAlive: true)
-Future<AnimeViewModel> animeViewModel(Ref ref) async {
-  final model = AnimeViewModel(
-    bangumiApiService: ref.read(bangumiApiServiceProvider),
-    aniListApiService: ref.read(anilistApiServiceProvider),
-    prefs: await ref.read(prefsProvider.future),
-    database: await ref.read(driftDatabaseProvider.future),
-  );
-  await model.setup();
-  return model;
-}
+HomeController homeController(Ref ref) =>
+    HomeController(ref.read(animeRepositoryProvider));
 
 /// Hero 动画标签状态提供者
 /// 用于在不同页面间传递 Hero 动画的唯一标签

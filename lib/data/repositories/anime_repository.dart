@@ -1,7 +1,8 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:lumberdash/lumberdash.dart';
+import 'package:movies/data/api/anilist_api_service.dart';
+import 'package:movies/data/api/bangumi_api_service.dart';
 import 'package:movies/data/database/models/database_interface.dart';
 import 'package:movies/data/database/models/database_models.dart';
 import 'package:movies/data/models/anime.dart';
@@ -10,16 +11,18 @@ import 'package:movies/data/models/anime_details.dart';
 import 'package:movies/data/models/anime_extras.dart';
 import 'package:movies/data/models/anime_trailer.dart';
 import 'package:movies/data/models/genre.dart';
-import 'package:movies/network/anilist_api_service.dart';
-import 'package:movies/network/bangumi_api_service.dart';
+import 'package:movies/data/parsing/search_result_parser.dart';
 import 'package:movies/utils/prefs.dart';
 
-/// 动漫视图模型
-/// 负责管理动漫数据的加载和分类
-/// 主数据源为 Bangumi，宽幅横幅与 PV 由 AniList 按需补充
-class AnimeViewModel {
-  // top - rate 数量
-  final int topRatedCount = 12;
+/// 动漫数据仓库
+/// 只负责「取数 + 缓存命中/回填」，返回模型；不持任何页面状态
+class AnimeRepository {
+  AnimeRepository({
+    required this.bangumiApiService,
+    required this.aniListApiService,
+    required this.prefs,
+    required this.database,
+  });
 
   /// Bangumi API 服务
   final BangumiApiService bangumiApiService;
@@ -28,25 +31,16 @@ class AnimeViewModel {
   final AniListApiService aniListApiService;
 
   /// 本地存储（用于缓存 AniList 补充数据）
-  final Prefs prefs;
+  final Future<Prefs> prefs;
 
-  /// 数据库（收藏 / 标签 / 图片配置）
+  /// 数据库（标签表）
   final IDatabase database;
+
+  /// 首页每栏数量
+  static const int pageSize = 12;
 
   /// 动漫标签列表（分类页）
   List<Genre>? animeGenres;
-
-  /// 热门动漫列表（sort=heat）
-  List<Anime> trendingAnimes = [];
-
-  /// 高评分动漫列表（评分 >= 8.5）
-  List<Anime> popularAnimes = [];
-
-  /// 排行榜动漫列表（排名 <= 300）
-  List<Anime> topRatedAnimes = [];
-
-  /// 本季放送动漫列表（放送日历）
-  List<Anime> nowPlayingAnimes = [];
 
   /// AniList 补充数据缓存（bangumiId → extras）
   final Map<int, AnimeExtras> extrasCache = {};
@@ -63,29 +57,16 @@ class AnimeViewModel {
   /// 角色 / 声优缓存
   final Map<int, List<AnimeCharacter>> _characterCache = {};
 
+  /// 已加载动漫索引（bangumiId → 同一实例），供 findAnimeById 反查
+  final Map<int, Anime> _animeIndex = {};
+
   /// 补充数据缓存是否已从本地加载
   bool _extrasLoaded = false;
 
-  /// 构造函数
-  AnimeViewModel({
-    required this.bangumiApiService,
-    required this.aniListApiService,
-    required this.prefs,
-    required this.database,
-  });
-
-  /// 初始化视图模型
+  /// 初始化：标签 + 补充数据缓存
   Future<void> setup() async {
     await setupGenres();
-    await _reloadFavorites();
-    _loadExtrasCache();
-  }
-
-  /// 收藏内存缓存（供同步 isFavorite 使用）
-  List<DBFavorite> _favorites = [];
-
-  Future<void> _reloadFavorites() async {
-    _favorites = await database.getFavorites();
+    _loadExtrasCache(await prefs);
   }
 
   /// 加载动漫标签列表
@@ -118,12 +99,11 @@ class AnimeViewModel {
     try {
       final response = await bangumiApiService.searchSubjects(
         sort: 'heat',
-        limit: topRatedCount,
-        offset: (page - 1) * topRatedCount,
+        limit: pageSize,
+        offset: (page - 1) * pageSize,
       );
       if (response.statusCode == 200) {
-        trendingAnimes = _parseSearchResults(response.data);
-        return trendingAnimes;
+        return _registerAll(parseSearchResults(response.data));
       }
       logError('Failed to load trending anime: ${response.statusCode}');
       return null;
@@ -133,18 +113,17 @@ class AnimeViewModel {
     }
   }
 
-  /// 获取高评分动漫列表（评分 >= 8.5，按评分排序）
+  /// 获取高评分动漫列表（评分 >= 8.0，按评分排序）
   Future<List<Anime>?> getPopular(int page) async {
     try {
       final response = await bangumiApiService.searchSubjects(
         ratingFilter: ['>= 8.0'],
-        limit: topRatedCount,
-        offset: (page - 1) * topRatedCount,
+        limit: pageSize,
+        offset: (page - 1) * pageSize,
       );
       if (response.statusCode == 200) {
-        popularAnimes = _parseSearchResults(response.data)
-          ..sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0));
-        return popularAnimes;
+        return _registerAll(parseSearchResults(response.data)
+          ..sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0)));
       }
       logError('Failed to load popular anime: ${response.statusCode}');
       return null;
@@ -159,13 +138,12 @@ class AnimeViewModel {
     try {
       final response = await bangumiApiService.searchSubjects(
         rankFilter: ['>= 1', '<= 300'],
-        limit: topRatedCount,
-        offset: (page - 1) * topRatedCount,
+        limit: pageSize,
+        offset: (page - 1) * pageSize,
       );
       if (response.statusCode == 200) {
-        topRatedAnimes = _parseSearchResults(response.data)
-          ..sort((a, b) => (a.rank ?? 9999).compareTo(b.rank ?? 9999));
-        return topRatedAnimes;
+        return _registerAll(parseSearchResults(response.data)
+          ..sort((a, b) => (a.rank ?? 9999).compareTo(b.rank ?? 9999)));
       }
       logError('Failed to load top rated anime: ${response.statusCode}');
       return null;
@@ -189,13 +167,13 @@ class AnimeViewModel {
           }
         }
         items.sort((a, b) {
-          final doingA = _collectionDoing(a);
-          final doingB = _collectionDoing(b);
+          final doingA = collectionDoing(a);
+          final doingB = collectionDoing(b);
           return doingB.compareTo(doingA);
         });
-        nowPlayingAnimes =
-            items.map((e) => Anime.fromBangumi(e)).take(topRatedCount).toList();
-        return nowPlayingAnimes;
+        return _registerAll(
+          items.map((e) => Anime.fromBangumi(e)).take(pageSize).toList(),
+        );
       }
       logError('Failed to load now playing anime: ${response.statusCode}');
       return null;
@@ -205,26 +183,44 @@ class AnimeViewModel {
     }
   }
 
-  /// 根据动漫 ID 查找动漫
-  Anime? findAnimeById(int animeId) {
-    for (final list in [
-      trendingAnimes,
-      topRatedAnimes,
-      popularAnimes,
-      nowPlayingAnimes
-    ]) {
-      for (final anime in list) {
-        if (anime.bangumiId == animeId) {
-          return anime;
-        }
+  /// 搜索动漫
+  Future<List<Anime>?> searchAnimes(
+    String query,
+    int page,
+    List<String>? tags,
+  ) async {
+    try {
+      final response = await bangumiApiService.searchSubjects(
+        keyword: query,
+        limit: 10,
+        tags: tags,
+        offset: (page - 1) * 10,
+      );
+      if (response.statusCode == 200) {
+        return _registerAll(parseSearchResults(response.data));
       }
+      logError('Failed to search anime: ${response.statusCode}');
+      return null;
+    } catch (e) {
+      logError('Error searching anime: $e');
+      return null;
     }
-    return null;
+  }
+
+  /// 根据动漫 ID 查找已加载过的动漫（同一实例，含 ensureExtras 的回填）
+  Anime? findAnimeById(int animeId) => _animeIndex[animeId];
+
+  /// 索引所有动漫，供 findAnimeById 反查
+  List<Anime> _registerAll(List<Anime> animes) {
+    for (final anime in animes) {
+      _animeIndex[anime.bangumiId] = anime;
+    }
+    return animes;
   }
 
   /// 确保动漫的补充数据已加载
   /// 横幅/PV 按需请求 AniList 并持久化缓存（失败时横幅为空，UI 回退封面图）
-  /// 简介在放送日历数据为空时从条目详情补全
+  /// 简介在放送日历数据为空时从条目详情补充
   Future<void> ensureExtras(Anime anime) async {
     if (anime.bannerImage == null) {
       final extras =
@@ -238,78 +234,6 @@ class AnimeViewModel {
         anime.synopsis = synopsis;
       }
     }
-  }
-
-  /// 收藏列表流（来自数据库）
-  Stream<List<DBFavorite>> streamFavorites() {
-    return database.streamFavorites();
-  }
-
-  /// 读取全部收藏
-  Future<List<DBFavorite>> getFavorites() async {
-    return database.getFavorites();
-  }
-
-  /// 保存收藏（全量字段，重启后无需再请求）
-  Future saveFavorite(AnimeDetails details) async {
-    await database.saveFavorite(
-      DBFavorite(
-        id: details.bangumiId,
-        animeId: details.bangumiId,
-        posterPath: details.image,
-        favorite: true,
-        popularity: details.score ?? 0,
-        releaseDate: DateTime(details.year ?? DateTime.now().year),
-        title: details.displayTitle,
-        overview: details.synopsis ?? '',
-      ),
-    );
-    await _reloadFavorites();
-  }
-
-  /// 按行 ID 移除收藏
-  Future<bool> removeFavorite(int id) async {
-    final ok = await database.removeFavorite(id);
-    await _reloadFavorites();
-    return ok;
-  }
-
-  /// 判断动漫是否已收藏（读内存缓存，setup/收藏变更后刷新）
-  bool isFavorite(int animeId) {
-    return _favorites
-        .any((fav) => fav.animeId == animeId && fav.favorite);
-  }
-
-  /// 切换动漫收藏状态
-  Future toggleFavorite(Anime anime) async {
-    // 先从内存缓存中查找是否已收藏
-    final index =
-        _favorites.indexWhere((fav) => fav.animeId == anime.animeId);
-    // 如果已收藏，移除, 并刷新内存缓存
-    if (index != -1) {
-      await database.removeFavorite(_favorites[index].id);
-      await _reloadFavorites();
-      return;
-    }
-    // 如果未收藏，添加, 并刷新内存缓存
-    final details = await getAnimeDetails(anime.bangumiId);
-    if (details != null) {
-      await saveFavorite(details);
-    } else {
-      await database.saveFavorite(
-        DBFavorite(
-          id: anime.animeId,
-          animeId: anime.animeId,
-          posterPath: anime.image,
-          favorite: true,
-          popularity: anime.score ?? 0,
-          releaseDate: anime.aired ?? DateTime.now(),
-          title: anime.title ?? '',
-          overview: anime.synopsis ?? '',
-        ),
-      );
-    }
-    await _reloadFavorites();
   }
 
   /// 获取动漫详情
@@ -396,77 +320,6 @@ class AnimeViewModel {
     }
   }
 
-  /// 搜索动漫
-  Future<List<Anime>?> searchAnimes(String query, int page , List<String>? tags)  async {
-    try {
-      final response = await bangumiApiService.searchSubjects(
-        keyword: query,
-        limit: 10,
-        tags: tags,
-        offset: (page - 1) * 10,
-      );
-      if (response.statusCode == 200) {
-        return _parseSearchResults(response.data);
-      }
-      logError('Failed to search anime: ${response.statusCode}');
-      return null;
-    } catch (e) {
-      logError('Error searching anime: $e');
-      return null;
-    }
-  }
-
-  /// 按标签筛选动漫
-  Future<List<Anime>?> getAnimesByGenre(int genreId, int page) async {
-    String? tagName;
-    for (final genre in animeGenres ?? const <Genre>[]) {
-      if (genre.malId == genreId) {
-        tagName = genre.name;
-        break;
-      }
-    }
-    if (tagName == null) {
-      return null;
-    }
-    try {
-      final response = await bangumiApiService.searchSubjects(
-        tags: [tagName],
-        limit: 10,
-        offset: (page - 1) * 10,
-      );
-      if (response.statusCode == 200) {
-        return _parseSearchResults(response.data);
-      }
-      logError('Failed to load anime by genre: ${response.statusCode}');
-      return null;
-    } catch (e) {
-      logError('Error loading anime by genre: $e');
-      return null;
-    }
-  }
-
-  /// 解析 Bangumi 搜索结果
-  List<Anime> _parseSearchResults(dynamic data) {
-    if (data is! Map<String, dynamic>) {
-      return [];
-    }
-    final items = data['data'];
-    if (items is! List<dynamic>) {
-      return [];
-    }
-    return items
-        .whereType<Map<String, dynamic>>()
-        .map(Anime.fromBangumi)
-        .toList();
-  }
-
-  /// 提取条目的在看人数（日历排序用）
-  int _collectionDoing(Map<String, dynamic> json) {
-    final collection = json['collection'] as Map<String, dynamic>?;
-    final doing = collection?['doing'];
-    return doing is num ? doing.toInt() : 0;
-  }
-
   /// 获取条目详情（带缓存，供详情页与 PV 共用）
   Future<Map<String, dynamic>?> _getSubject(int animeId) async {
     final cached = _subjectCache[animeId];
@@ -495,7 +348,8 @@ class AnimeViewModel {
     String? nameJa,
     String? nameCn,
   ) async {
-    _loadExtrasCache();
+    final p = await prefs;
+    _loadExtrasCache(p);
     final cached = extrasCache[bangumiId];
     if (cached != null) {
       return cached;
@@ -512,7 +366,7 @@ class AnimeViewModel {
       }
     }
     extrasCache[bangumiId] = extras;
-    _saveExtrasCache();
+    _saveExtrasCache(p);
     return extras;
   }
 
@@ -544,7 +398,7 @@ class AnimeViewModel {
   }
 
   /// 从本地存储加载补充数据缓存
-  void _loadExtrasCache() {
+  void _loadExtrasCache(Prefs prefs) {
     if (_extrasLoaded) {
       return;
     }
@@ -568,7 +422,7 @@ class AnimeViewModel {
   }
 
   /// 保存补充数据缓存到本地存储
-  void _saveExtrasCache() {
+  void _saveExtrasCache(Prefs prefs) {
     final raw = jsonEncode({
       for (final entry in extrasCache.entries)
         entry.key.toString(): entry.value.toJson(),

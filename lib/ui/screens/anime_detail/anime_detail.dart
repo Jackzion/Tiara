@@ -3,15 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lumberdash/lumberdash.dart';
-import 'package:movies/data/models/anime.dart';
-import 'package:movies/data/models/anime_character.dart';
 import 'package:movies/data/models/anime_details.dart';
-import 'package:movies/data/models/anime_extras.dart';
-import 'package:movies/data/models/anime_trailer.dart';
 import 'package:movies/data/models/play_context.dart';
 import 'package:movies/providers.dart';
 import 'package:movies/router/app_routes.dart';
-import 'package:movies/ui/anime_viewmodel.dart';
+import 'package:movies/state/anime_detail_controller.dart';
 import 'package:movies/ui/screens/anime_detail/anime_overview.dart';
 import 'package:movies/ui/screens/anime_detail/button_row.dart';
 import 'package:movies/ui/screens/anime_detail/detail_banner.dart';
@@ -35,13 +31,13 @@ class AnimeDetail extends ConsumerStatefulWidget {
 }
 
 class _AnimeDetailState extends ConsumerState<AnimeDetail> {
-  late AnimeViewModel animeViewModel;
-  AnimeDetails? animeDetails;
-  String? bannerImage;
-  List<AnimeTrailer> trailerVideos = [];
-  List<AnimeCharacter> characters = [];
-  /// 缓存 Future：为空说明未加载过，不为空说明 loadData 已经执行过，不用再次加载
-  Future<void>? _loadFuture;
+  /// 本页控制器（详情/预告/角色/横幅 + 收藏操作）
+  late final AnimeDetailController detailController = AnimeDetailController(
+    animeRepository: ref.read(animeRepositoryProvider),
+    favoriteRepository: ref.read(favoriteRepositoryProvider),
+    animeId: widget.animeId,
+  );
+
   final ValueNotifier<bool> _favoriteNotifier = ValueNotifier(false);
 
   @override
@@ -52,22 +48,19 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
 
   @override
   Widget build(BuildContext context) {
-    final animeViewModelAsync = ref.watch(animeViewModelProvider);
-    return animeViewModelAsync.when(
+    // 数据层就绪（收藏缓存预热完成）后才渲染
+    final dataReadyAsync = ref.watch(dataReadyProvider);
+    return dataReadyAsync.when(
       error: (e, st) => Text(e.toString()),
       loading: () => const NotReady(),
-      data: (viewModel) {
-        animeViewModel = viewModel;
-        return buildScreen();
-      },
+      data: (_) => buildScreen(),
     );
   }
 
   Widget buildScreen() {
-    // 缓存 Future：窗口缩放 / rebuild 不得重新拉接口
-    _loadFuture ??= loadData();
     return FutureBuilder<void>(
-      future: _loadFuture,
+      // 缓存 Future：窗口缩放 / rebuild 不得重新拉接口
+      future: detailController.load(),
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return const NotReady();
@@ -76,7 +69,7 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
           logMessage('Error: ${snapshot.error.toString()}');
           return Text(snapshot.error.toString());
         }
-        if (animeDetails == null) {
+        if (detailController.animeDetails == null) {
           return const NotReady();
         }
         return buildDetailScreen();
@@ -85,8 +78,10 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
   }
 
   Widget buildDetailScreen() {
-    final details = animeDetails!;
-    _favoriteNotifier.value = animeViewModel.isFavorite(widget.animeId);
+    final details = detailController.animeDetails!;
+    final trailerVideos = detailController.trailerVideos;
+    final characters = detailController.characters;
+    _favoriteNotifier.value = detailController.isFavorite();
 
     return SafeArea(
       child: Scaffold(
@@ -111,7 +106,10 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
               SliverList(
                 delegate: SliverChildListDelegate([
                   // 顶部渐进色背景：图源 bannerImage（animeId 对应 AniList）
-                  DetailBanner(details: details, bannerImage: bannerImage),
+                  DetailBanner(
+                    details: details,
+                    bannerImage: detailController.bannerImage,
+                  ),
                   // 左完整 detail.image + 元信息；右章节/简介/标签
                   _buildPosterAndOverview(details),
                   ValueListenableBuilder<bool>(
@@ -120,12 +118,8 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
                       return ButtonRow(
                         favoriteSelected: _favoriteNotifier.value,
                         onFavoriteSelected: () async {
-                          await animeViewModel.toggleFavorite(
-                            Anime(bangumiId: widget.animeId),
-                          );
-                          _favoriteNotifier.value = animeViewModel.isFavorite(
-                            widget.animeId,
-                          );
+                          await detailController.toggleFavorite();
+                          _favoriteNotifier.value = detailController.isFavorite();
                         },
                       );
                     },
@@ -276,32 +270,6 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
         ),
       ],
     );
-  }
-
-  Future<void> loadData() async {
-    animeDetails = await animeViewModel.getAnimeDetails(widget.animeId);
-
-    // 按 animeId 补充 bannerImage（AniList），与视频/角色并行加载
-    String? nameJa;
-    String? nameCn;
-    final anime = animeViewModel.findAnimeById(widget.animeId);
-    if (anime != null) {
-      nameJa = anime.titleJapanese;
-      nameCn = anime.title;
-    } else {
-      nameJa = animeDetails?.titleJapanese;
-      nameCn = animeDetails?.title;
-    }
-
-    final results = await Future.wait([
-      animeViewModel.getAnimeTrailers(widget.animeId),
-      animeViewModel.getAnimeCharacters(widget.animeId),
-      animeViewModel.getExtras(widget.animeId, nameJa, nameCn),
-    ]);
-    trailerVideos = results[0] as List<AnimeTrailer>;
-    characters = results[1] as List<AnimeCharacter>;
-    // 从 extras 中获取 bannerImage（可能为空）
-    bannerImage = (results[2] as AnimeExtras).bannerImage;
   }
 
   /// 打开视频源选择器

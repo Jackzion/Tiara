@@ -1,3 +1,5 @@
+import 'package:movies/data/parsing/anime_json.dart';
+
 /// 动漫数据模型
 /// 数据来源：Bangumi 条目（搜索/日历），横幅与 PV 由 AniList 按需补充
 class Anime {
@@ -60,12 +62,12 @@ class Anime {
       titleJapanese: name,
       image: images?['large'] as String? ?? images?['medium'] as String? ?? '',
       synopsis: json['summary'] as String?,
-      aired: _parseDate(
+      aired: parseDate(
         json['date'] as String? ?? json['air_date'] as String?,
       ),
-      score: _parseDouble(rating?['score']),
-      rank: _parseInt(json['rank'] ?? rating?['rank']),
-      episodes: _parseInt(json['eps'] ?? json['total_episodes']),
+      score: parseDouble(rating?['score']),
+      rank: parseInt(json['rank'] ?? rating?['rank']),
+      episodes: parseInt(json['eps'] ?? json['total_episodes']),
       type: json['platform'] as String?,
     );
   }
@@ -75,25 +77,4 @@ class Anime {
 
   /// 封面图地址
   String get imageUrl => image;
-
-  static DateTime? _parseDate(String? value) {
-    if (value == null || value.isEmpty) {
-      return null;
-    }
-    return DateTime.tryParse(value);
-  }
-
-  static int? _parseInt(dynamic value) {
-    if (value == null) {
-      return null;
-    }
-    return value is num ? value.toInt() : int.tryParse(value.toString());
-  }
-
-  static double? _parseDouble(dynamic value) {
-    if (value == null) {
-      return null;
-    }
-    return value is num ? value.toDouble() : double.tryParse(value.toString());
-  }
 }

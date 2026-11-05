@@ -1,10 +1,8 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:movies/data/models/anime.dart';
 import 'package:movies/providers.dart';
 import 'package:movies/router/app_routes.dart';
-import 'package:movies/ui/anime_viewmodel.dart';
 import 'package:movies/ui/screens/home/home_screen_image.dart';
 import 'package:movies/ui/screens/home/title_row.dart';
 import 'package:movies/ui/screens/home/horiz_animes.dart';
@@ -23,28 +21,23 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  late AnimeViewModel animeViewModel;
-  Future<List<List<Anime?>?>>? animeFuture;
-
   @override
   Widget build(BuildContext context) {
-    // 监听异步提供者状态
-    final animeViewModelAsync = ref.watch(animeViewModelProvider);
-    return animeViewModelAsync.when(
+    // 数据层就绪（标签/收藏/补充缓存预热）后才渲染
+    final dataReadyAsync = ref.watch(dataReadyProvider);
+    return dataReadyAsync.when(
       error: (e, st) => Text(e.toString()),
       loading: () => const NotReady(),
-      data: (viewModel) {
-        animeViewModel = viewModel;
-        return buildScreen();
-      },
+      data: (_) => buildScreen(),
     );
   }
 
   Widget buildScreen() {
+    final homeController = ref.read(homeControllerProvider);
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
       body: FutureBuilder(
-        future: loadData(),
+        future: homeController.loadAll(),
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return const NotReady();
@@ -55,27 +48,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: Column(
                 children: [
                   HomeScreenImage(
-                    animeViewModel: animeViewModel,
                     onAnimeTap: onAnimeTap,
                   ),
                   TitleRow(text: 'trending ', onMoreClicked: () {}),
                   HorizontalAnimes(
-                    animes: animeViewModel.trendingAnimes,
-                    animeViewModel: animeViewModel,
+                    animes: homeController.trendingAnimes,
                     onAnimeTap: onAnimeTap,
                     animeType: AnimeType.trending,
                   ),
                   TitleRow(text: 'popular ', onMoreClicked: () {}),
                   HorizontalAnimes(
-                    animes: animeViewModel.popularAnimes,
-                    animeViewModel: animeViewModel,
+                    animes: homeController.popularAnimes,
                     onAnimeTap: onAnimeTap,
                     animeType: AnimeType.popular,
                   ),
                   TitleRow(text: 'top-rated ', onMoreClicked: () {}),
                   HorizontalAnimes(
-                    animes: animeViewModel.topRatedAnimes,
-                    animeViewModel: animeViewModel,
+                    animes: homeController.topRatedAnimes,
                     onAnimeTap: onAnimeTap,
                     animeType: AnimeType.topRated,
                   ),
@@ -86,18 +75,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         },
       ),
     );
-  }
-
-  /// 加载动漫数据
-  /// 使用 Future.wait 等待所有分类动漫加载完成
-  Future<List<List<Anime?>?>> loadData() async {
-    animeFuture ??= Future.wait([
-      animeViewModel.getTrendingAnimes(1),
-      animeViewModel.getTopRated(1),
-      animeViewModel.getPopular(1),
-      animeViewModel.getNowPlaying(1),
-    ]);
-    return animeFuture!;
   }
 
   /// 动漫点击回调，跳转到动漫详情页

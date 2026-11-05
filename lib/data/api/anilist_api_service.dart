@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
-import 'package:movies/network/request_throttle.dart';
-import 'package:movies/network/timing_interceptor.dart';
+import 'package:movies/data/api/request_throttle.dart';
+import 'package:movies/data/api/timing_interceptor.dart';
 
 /// AniList GraphQL API 地址
 const String anilistApiUrl = 'https://graphql.anilist.co';
