@@ -80,9 +80,8 @@ class _AnimeWidgetState extends ConsumerState<AnimeWidget> {
     final anime = widget.anime;
     return GestureDetector(
       onTap: () {
-        // 设置当前的 Hero 标签，用于详情页动画
-        ref.read(heroTagProvider.notifier).state = uniqueHeroTag;
-        widget.onAnimeTap(anime.animeId);
+        // Hero 标签随路由参数传给详情页，配对 Hero 动画
+        widget.onAnimeTap(anime.animeId, uniqueHeroTag);
       },
       child: Stack(
         fit: StackFit.expand,
@@ -364,8 +363,7 @@ class _AnimeWidgetState extends ConsumerState<AnimeWidget> {
         // 播放按钮（跳转详情页）
         GestureDetector(
           onTap: () {
-            ref.read(heroTagProvider.notifier).state = uniqueHeroTag;
-            widget.onAnimeTap(anime.animeId);
+            widget.onAnimeTap(anime.animeId, uniqueHeroTag);
           },
           child: Container(
             width: 40,

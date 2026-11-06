@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import 'package:movies/data/models/anime.dart';
-import 'package:movies/providers.dart';
 import 'package:movies/utils/utils.dart';
 
 /// 动漫行展示组件
 /// 支持 Hero 动画过渡效果，点击后跳转到动漫详情页
-class AnimeRow extends ConsumerWidget {
+class AnimeRow extends StatelessWidget {
   /// 动漫数据对象
   final Anime anime;
   /// 点击回调函数
@@ -21,16 +19,15 @@ class AnimeRow extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     // 唯一的 Hero 动画标签，由动漫地址和 'AnimeRow' 组合生成
     String uniqueHeroTag = anime.image + 'AnimeRow';
 
     if (anime.image.isNotEmpty) {
       return GestureDetector(
         onTap: () {
-          // 设置当前的 Hero 标签，用于详情页动画
-          ref.read(heroTagProvider.notifier).state = uniqueHeroTag;
-          onAnimeTap(anime.animeId);
+          // Hero 标签随路由参数传给详情页，配对 Hero 动画
+          onAnimeTap(anime.animeId, uniqueHeroTag);
         },
         child: Padding(
           padding: const EdgeInsets.all(8.0),

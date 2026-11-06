@@ -81,9 +81,11 @@ class _FavoriteScreenState extends ConsumerState<FavoriteScreen> {
                         ),
                         VerticalFavoriteList(
                           favorites: currentFavorites,
-                          onAnimeTap: (animeId) {
-                            context.router
-                                .push(AnimeDetailRoute(animeId: animeId));
+                          onAnimeTap: (animeId, heroTag) {
+                            context.router.push(AnimeDetailRoute(
+                              animeId: animeId,
+                              heroTag: heroTag,
+                            ));
                           },
                           onFavoritesTap: (DBFavorite favorite) {
                             ref

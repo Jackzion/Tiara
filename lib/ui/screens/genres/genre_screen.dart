@@ -1,10 +1,10 @@
 import 'package:auto_route/auto_route.dart';
-import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:movies/providers.dart';
 import 'package:movies/router/app_routes.dart';
 import 'package:movies/state/genre_controller.dart';
+import 'package:movies/state/search_state.dart';
 import 'package:movies/ui/screens/genres/sort_picker.dart';
 import 'package:movies/ui/theme/theme.dart';
 import 'package:movies/ui/screens/genres/genre_search_row.dart';
@@ -25,8 +25,8 @@ class GenreScreen extends ConsumerStatefulWidget {
 }
 
 class _GenreScreenState extends ConsumerState<GenreScreen> {
-  String _lastSearchedText = '';
-  List<String> _lastSearchedTag = [];
+  /// 已调度的跨页请求序号（避免重复 postFrame）
+  int _lastRequestSeq = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -47,54 +47,32 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
     );
   }
 
-  /// 把选中的类型同步到跨页 searchTagProvider
-  void updateSearchTags() {
-    final notifier = ref.read(searchTagProvider.notifier);
-    // 必须赋一个新列表实例，GenreScreen 的 watch 才能感知变化
-    notifier.state = ref.read(genreControllerProvider.notifier).selectedNames();
-  }
-
   Widget buildScreen(GenrePageState pageState) {
-    // SearchDialog / 菜单 / 全局搜索写入 searchTextProvider 时同步并触发搜索
-    final searchText = ref.watch(searchTextProvider);
-    // 详情页点标签跳转写入 searchTagProvider，也要带着最新 genres 重新请求
-    final searchTag = ref.watch(searchTagProvider);
-    final textChanged = searchText != _lastSearchedText;
-    // 列表按内容比较（引用比较会每次 rebuild 都判为变化）
-    final tagChanged = !listEquals(searchTag, _lastSearchedTag);
-
-    // textChanged || tagChanged 才触发 search()
-    if (textChanged || tagChanged) {
-      _lastSearchedText = searchText; // 只读记忆，没有任何地方会"回写"它
-      _lastSearchedTag = List<String>.from(searchTag);
-      final hasText = searchText.trim().isNotEmpty;
-      final hasTag = searchTag.any((tag) => tag.trim().isNotEmpty);
-      // 全局搜索同词双写会经过 ''：中间态不请求、不清列表，避免闪空
-      if (!hasText && !hasTag) {
-        return SafeArea(child: _genreBody(context, pageState));
-      }
-      // 本帧纯渲染「空结果 + 收起 chip」（不写任何状态，build 期禁止改 provider）；
-      // postFrame 再复位展开态并发起搜索
+    // 跨页搜索请求（全局搜索 / SearchDialog / 详情页点标签）：
+    // 只登记序号，postFrame 消费，build 期不写任何状态
+    final request = ref.watch(searchStateProvider);
+    if (request.seq != 0 && request.seq != _lastRequestSeq) {
+      _lastRequestSeq = request.seq;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        expandedNotifier.value = false;
-        search();
+        _finishSearch(
+          // buildRequest -> controller -> ui rebuild
+          ref.read(genreControllerProvider.notifier).applyRequest(request),
+        );
       });
-      return SafeArea(
-        child: _genreBody(
-          context,
-          pageState.copyWith(currentAnimeList: const []),
-          isExpanded: false,
-        ),
-      );
     }
     return SafeArea(child: _genreBody(context, pageState));
   }
 
-  Widget _genreBody(
-    BuildContext context,
-    GenrePageState pageState, {
-    bool? isExpanded,
-  }) {
+  /// 等搜索完成后展开 chip 区（requested=false 表示未发起请求）
+  Future<void> _finishSearch(Future<bool> search) async {
+    final requested = await search;
+    if (!requested || !mounted) {
+      return;
+    }
+    expandedNotifier.value = true;
+  }
+
+  Widget _genreBody(BuildContext context, GenrePageState pageState) {
     return Container(
       color: screenBackground,
       child: Column(
@@ -111,12 +89,12 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
                     ),
-                    GenreSearchRow(ref.watch(searchTextProvider), (
-                      searchString,
-                    ) {
-                      // 只写 provider，其余交给 buildScreen 统一触发
-                      ref.read(searchTextProvider.notifier).state =
-                          searchString;
+                    GenreSearchRow(pageState.keyword, (searchString) {
+                      _finishSearch(
+                        ref
+                            .read(genreControllerProvider.notifier)
+                            .searchByKeyword(searchString),
+                      );
                       FocusScope.of(context).unfocus();
                     }),
                   ]),
@@ -126,17 +104,25 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
                   builder: (BuildContext context, bool value, Widget? child) {
                     return GenreSection(
                       genreStates: pageState.genreStates,
-                      isExpanded: isExpanded ?? value,
+                      externalTags: pageState.externalTags,
+                      isExpanded: value,
                       onGenresExpanded: (expanded) {
                         expandedNotifier.value = expanded;
                       },
                       onGenresSelected: (fullList) {
-                        // 保持全量列表，只同步选中状态（内部会持久化）
-                        ref
-                            .read(genreControllerProvider.notifier)
-                            .updateSelections(fullList);
-                        // update searchTags provider
-                        updateSearchTags();
+                        // 保持全量列表，只同步选中状态（内部会持久化并重搜）
+                        _finishSearch(
+                          ref
+                              .read(genreControllerProvider.notifier)
+                              .updateSelections(fullList),
+                        );
+                      },
+                      onRemoveExternalTag: (tag) {
+                        _finishSearch(
+                          ref
+                              .read(genreControllerProvider.notifier)
+                              .removeExternalTag(tag),
+                        );
                       },
                     );
                   },
@@ -151,8 +137,11 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
                 ),
                 VerticalAnimeList(
                   animes: pageState.currentAnimeList,
-                  onAnimeTap: (animeId) {
-                    context.router.push(AnimeDetailRoute(animeId: animeId));
+                  onAnimeTap: (animeId, heroTag) {
+                    context.router.push(AnimeDetailRoute(
+                      animeId: animeId,
+                      heroTag: heroTag,
+                    ));
                   },
                 ),
               ],
@@ -161,19 +150,6 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
         ],
       ),
     );
-  }
-
-  void search() async {
-    // 全局搜索双写 '' + keyword 时，空串不要打请求
-    final query = ref.read(searchTextProvider).trim();
-    // read tag provider（可能有多个，逐个并入）
-    final searchTags = ref.read(searchTagProvider);
-    final requested =
-        await ref.read(genreControllerProvider.notifier).search(query, searchTags);
-    if (!requested || !mounted) {
-      return;
-    }
-    expandedNotifier.value = true;
   }
 }
 

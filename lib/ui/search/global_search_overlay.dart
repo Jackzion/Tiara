@@ -25,7 +25,7 @@ class GlobalSearchOverlay extends StatelessWidget {
   /// 开/关、文本与焦点
   final GlobalSearchController controller;
 
-  /// 回车提交回调；传入「切 Genre + searchTextProvider」
+  /// 回车提交回调；传入「切 Genre + SearchState 搜索请求」
   /// 为空时仅关闭 Overlay
   final ValueChanged<String>? onSubmitted;
 

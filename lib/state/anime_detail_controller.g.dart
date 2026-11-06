@@ -9,16 +9,19 @@ part of 'anime_detail_controller.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// 动漫详情页控制器（family: animeId，autoDispose 随页面销毁）
+/// 只要还有任何一处 `ref.watch` / `ref.listen` 在监听这个 Provider → 不会销毁。
 /// build 一次性加载详情/预告/角色/横幅，Riverpod 记忆化保证 rebuild 不重拉
 
 @ProviderFor(AnimeDetailController)
 final animeDetailControllerProvider = AnimeDetailControllerFamily._();
 
 /// 动漫详情页控制器（family: animeId，autoDispose 随页面销毁）
+/// 只要还有任何一处 `ref.watch` / `ref.listen` 在监听这个 Provider → 不会销毁。
 /// build 一次性加载详情/预告/角色/横幅，Riverpod 记忆化保证 rebuild 不重拉
 final class AnimeDetailControllerProvider
     extends $AsyncNotifierProvider<AnimeDetailController, AnimeDetailState> {
   /// 动漫详情页控制器（family: animeId，autoDispose 随页面销毁）
+  /// 只要还有任何一处 `ref.watch` / `ref.listen` 在监听这个 Provider → 不会销毁。
   /// build 一次性加载详情/预告/角色/横幅，Riverpod 记忆化保证 rebuild 不重拉
   AnimeDetailControllerProvider._({
     required AnimeDetailControllerFamily super.from,
@@ -60,6 +63,7 @@ String _$animeDetailControllerHash() =>
     r'8faad49af9bd142287dd0ba24ef876cc52dcacb0';
 
 /// 动漫详情页控制器（family: animeId，autoDispose 随页面销毁）
+/// 只要还有任何一处 `ref.watch` / `ref.listen` 在监听这个 Provider → 不会销毁。
 /// build 一次性加载详情/预告/角色/横幅，Riverpod 记忆化保证 rebuild 不重拉
 
 final class AnimeDetailControllerFamily extends $Family
@@ -81,6 +85,7 @@ final class AnimeDetailControllerFamily extends $Family
       );
 
   /// 动漫详情页控制器（family: animeId，autoDispose 随页面销毁）
+  /// 只要还有任何一处 `ref.watch` / `ref.listen` 在监听这个 Provider → 不会销毁。
   /// build 一次性加载详情/预告/角色/横幅，Riverpod 记忆化保证 rebuild 不重拉
 
   AnimeDetailControllerProvider call(int animeId) =>
@@ -91,6 +96,7 @@ final class AnimeDetailControllerFamily extends $Family
 }
 
 /// 动漫详情页控制器（family: animeId，autoDispose 随页面销毁）
+/// 只要还有任何一处 `ref.watch` / `ref.listen` 在监听这个 Provider → 不会销毁。
 /// build 一次性加载详情/预告/角色/横幅，Riverpod 记忆化保证 rebuild 不重拉
 
 abstract class _$AnimeDetailController

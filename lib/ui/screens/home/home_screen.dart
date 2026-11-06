@@ -76,7 +76,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   /// 动漫点击回调，跳转到动漫详情页
-  void onAnimeTap(int animeId) {
-    context.router.push(AnimeDetailRoute(animeId: animeId));
+  void onAnimeTap(int animeId, String? heroTag) {
+    context.router.push(AnimeDetailRoute(animeId: animeId, heroTag: heroTag));
   }
 }

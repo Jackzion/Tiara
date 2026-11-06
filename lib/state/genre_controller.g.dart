@@ -8,25 +8,25 @@ part of 'genre_controller.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// 分类页控制器（autoDispose：随页面销毁）
-/// 持有类型 chip 选中态与当前搜索结果，负责类型选择持久化与搜索
+/// 分类页控制器（keepAlive：搜索会话跨 Tab 切换复用）
+/// 持有 chip 选中态、外部 tag 与搜索结果，负责类型持久化与搜索编排
 
 @ProviderFor(GenreController)
 final genreControllerProvider = GenreControllerProvider._();
 
-/// 分类页控制器（autoDispose：随页面销毁）
-/// 持有类型 chip 选中态与当前搜索结果，负责类型选择持久化与搜索
+/// 分类页控制器（keepAlive：搜索会话跨 Tab 切换复用）
+/// 持有 chip 选中态、外部 tag 与搜索结果，负责类型持久化与搜索编排
 final class GenreControllerProvider
     extends $AsyncNotifierProvider<GenreController, GenrePageState> {
-  /// 分类页控制器（autoDispose：随页面销毁）
-  /// 持有类型 chip 选中态与当前搜索结果，负责类型选择持久化与搜索
+  /// 分类页控制器（keepAlive：搜索会话跨 Tab 切换复用）
+  /// 持有 chip 选中态、外部 tag 与搜索结果，负责类型持久化与搜索编排
   GenreControllerProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
         name: r'genreControllerProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -39,10 +39,10 @@ final class GenreControllerProvider
   GenreController create() => GenreController();
 }
 
-String _$genreControllerHash() => r'd7f7b8c76b54fd3833eb05452d7e4bedf9d46d4f';
+String _$genreControllerHash() => r'e7f5a04caf0bea3856962935fd11a89f74e722c6';
 
-/// 分类页控制器（autoDispose：随页面销毁）
-/// 持有类型 chip 选中态与当前搜索结果，负责类型选择持久化与搜索
+/// 分类页控制器（keepAlive：搜索会话跨 Tab 切换复用）
+/// 持有 chip 选中态、外部 tag 与搜索结果，负责类型持久化与搜索编排
 
 abstract class _$GenreController extends $AsyncNotifier<GenrePageState> {
   FutureOr<GenrePageState> build();

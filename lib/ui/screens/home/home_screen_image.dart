@@ -391,8 +391,7 @@ class _HomeScreenImageState extends ConsumerState<HomeScreenImage> {
 
   /// 跳转到动漫详情页
   void openDetail(Anime anime) {
-    ref.read(heroTagProvider.notifier).state = '${anime.image}swiper';
-    widget.onAnimeTap(anime.animeId);
+    widget.onAnimeTap(anime.animeId, '${anime.image}swiper');
   }
 
   /// 切换到指定缩略图，重置自动轮播计时器

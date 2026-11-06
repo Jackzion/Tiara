@@ -18,7 +18,7 @@ Widget addHorizontalSpace(double amount) {
 }
 
 /// 动漫点击回调类型
-typedef OnAnimeTap = void Function(int animeId);
+typedef OnAnimeTap = void Function(int animeId, String? heroTag);
 
 /// 预告片点击回调类型
 typedef OnAnimeTrailerTap = void Function(AnimeTrailer trailer);

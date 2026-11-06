@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:movies/providers.dart';
+import 'package:movies/state/main_nav_index.dart';
+import 'package:movies/state/search_state.dart';
 import 'package:movies/ui/menus.dart';
 import 'package:movies/ui/theme/theme.dart';
 import 'package:movies/utils/utils.dart';
 
 /// 搜索弹窗：一个输入框 + 取消 / 搜索两个按钮
-/// 确认后写入 [searchTextProvider]，由 GenreScreen 监听并拉取结果
+/// 确认后写入 [SearchStateProvider]，由 GenreScreen 消费并拉取结果
 class SearchDialog extends ConsumerStatefulWidget {
   const SearchDialog({super.key});
 
@@ -67,12 +68,12 @@ class _SearchDialogState extends ConsumerState<SearchDialog> {
     );
   }
 
-  /// 发送搜索：写入 provider 并切到 Genre 页
+  /// 发送搜索：写入 SearchState 并切到 Genre 页
   /// MainScreen 下标：0 Home / 1 Genre / 2 Favorites
   void submitSearch() {
     final query = searchTextController.text.trim();
-    ref.read(searchTextProvider.notifier).state = query;
-    ref.read(currentNavIndexProvider.notifier).state = 1;
+    ref.read(currentNavIndexProvider.notifier).goTo(1);
+    ref.read(searchStateProvider.notifier).searchByKeyword(query);
     Navigator.of(context).pop();
   }
 }

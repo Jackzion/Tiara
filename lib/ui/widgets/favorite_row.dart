@@ -23,7 +23,7 @@ class FavoriteRow extends StatelessWidget {
     final imageUrl = favorite.posterPath;
 
     return GestureDetector(
-      onTap: () => onAnimeTap(favorite.animeId),
+      onTap: () => onAnimeTap(favorite.animeId, null),
       child: SizedBox(
         height: 148,
         child: Row(

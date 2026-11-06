@@ -8,6 +8,8 @@ import 'package:movies/data/models/play_context.dart';
 import 'package:movies/providers.dart';
 import 'package:movies/router/app_routes.dart';
 import 'package:movies/state/anime_detail_controller.dart';
+import 'package:movies/state/main_nav_index.dart';
+import 'package:movies/state/search_state.dart';
 import 'package:movies/ui/screens/anime_detail/anime_overview.dart';
 import 'package:movies/ui/screens/anime_detail/button_row.dart';
 import 'package:movies/ui/screens/anime_detail/detail_banner.dart';
@@ -24,7 +26,12 @@ import 'package:movies/ui/theme/theme.dart';
 @RoutePage(name: 'AnimeDetailRoute')
 class AnimeDetail extends ConsumerStatefulWidget {
   final int animeId;
-  const AnimeDetail(this.animeId, {super.key});
+
+  /// 来源页 Hero 标签（列表页点击处生成），配对海报 Hero 动画
+  /// autoRouter 会自动生成 heroTag 参数
+  final String? heroTag;
+
+  const AnimeDetail(this.animeId, {this.heroTag, super.key});
 
   @override
   ConsumerState<AnimeDetail> createState() => _AnimeDetailState();
@@ -172,17 +179,10 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
       onWatchTap: () => _openSourceSheet(details, preferredEpisode: null),
       // 点标签:(标签名称) 回调
       onTagTap: (genre){
-        // 切换到 Genre Tab
+        // 切换到 Genre Tab 并发起标签搜索（SearchState 请求，Genre 页消费）
         final container = ProviderScope.containerOf(context, listen: false);
-        container.read(currentNavIndexProvider.notifier).state = 1;
-        // 写入搜索 tag；再点同一个 tag 视为取消（单次赋值，GenreScreen 才能感知变化）
-        final notifier = container.read(searchTagProvider.notifier);
-        final tags = List<String>.from(notifier.state);
-        if(!tags.contains(genre.name)){
-            tags.add(genre.name);
-        }
-        // 必须赋一个新列表实例，GenreScreen 的 watch 才能感知变化
-        notifier.state = tags;
+        container.read(currentNavIndexProvider.notifier).goTo(1);
+        container.read(searchStateProvider.notifier).addTag(genre.name);
         // route to genres screen
         context.router.pop();
       },
@@ -232,7 +232,11 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
       children: [
         SizedBox(
           width: posterWidth,
-          child: DetailImage(details: details, width: posterWidth),
+          child: DetailImage(
+            details: details,
+            width: posterWidth,
+            heroTag: widget.heroTag,
+          ),
         ),
         addVerticalSpace(16),
         SizedBox(
