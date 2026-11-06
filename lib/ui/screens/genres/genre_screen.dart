@@ -25,17 +25,8 @@ class GenreScreen extends ConsumerStatefulWidget {
 }
 
 class _GenreScreenState extends ConsumerState<GenreScreen> {
-  /// 本页控制器（类型 chip 选中态 + 当前搜索结果）
-  late final GenreController genreController =
-      GenreController(ref.read(animeRepositoryProvider));
-
   String _lastSearchedText = '';
   List<String> _lastSearchedTag = [];
-
-  @override
-  void dispose() {
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,44 +36,25 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
       error: (e, st) => Text(e.toString()),
       loading: () => const NotReady(),
       data: (_) {
-        ensureGenreState();
-        return buildScreen();
+        // 分类页状态（chip 选中 + 搜索结果），controller 状态变化自动 rebuild
+        final genreAsync = ref.watch(genreControllerProvider);
+        return genreAsync.when(
+          error: (e, st) => Text(e.toString()),
+          loading: () => const NotReady(),
+          data: buildScreen,
+        );
       },
     );
-  }
-
-  /// 仅在首次拿到类型数据时初始化，后续 rebuild 不再 clear
-  void ensureGenreState() {
-    if (genreController.ensureGenreState()) {
-      // 异步恢复本地选中项
-      restoreSelectedGenres();
-    }
-  }
-
-  /// 从本地存储恢复选中状态（只改 isSelected，不重建列表）
-  Future<void> restoreSelectedGenres() async {
-    final prefs = await ref.read(prefsProvider.future);
-    await genreController.restoreSelectedGenres(prefs);
-    if (!mounted) {
-      return;
-    }
-    setState(() {});
-  }
-
-  /// 仅保存已选中的类型名
-  Future<void> saveSelectedGenres() async {
-    final prefs = await ref.read(prefsProvider.future);
-    await genreController.saveSelectedGenres(prefs);
   }
 
   /// 把选中的类型同步到跨页 searchTagProvider
   void updateSearchTags() {
     final notifier = ref.read(searchTagProvider.notifier);
     // 必须赋一个新列表实例，GenreScreen 的 watch 才能感知变化
-    notifier.state = genreController.selectedNames();
+    notifier.state = ref.read(genreControllerProvider.notifier).selectedNames();
   }
 
-  Widget buildScreen() {
+  Widget buildScreen(GenrePageState pageState) {
     // SearchDialog / 菜单 / 全局搜索写入 searchTextProvider 时同步并触发搜索
     final searchText = ref.watch(searchTextProvider);
     // 详情页点标签跳转写入 searchTagProvider，也要带着最新 genres 重新请求
@@ -99,18 +71,30 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
       final hasTag = searchTag.any((tag) => tag.trim().isNotEmpty);
       // 全局搜索同词双写会经过 ''：中间态不请求、不清列表，避免闪空
       if (!hasText && !hasTag) {
-        return SafeArea(child: _genreBody(context));
+        return SafeArea(child: _genreBody(context, pageState));
       }
-      genreController.currentAnimeList = [];
-      expandedNotifier.value = false;
+      // 本帧纯渲染「空结果 + 收起 chip」（不写任何状态，build 期禁止改 provider）；
+      // postFrame 再复位展开态并发起搜索
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        expandedNotifier.value = false;
         search();
       });
+      return SafeArea(
+        child: _genreBody(
+          context,
+          pageState.copyWith(currentAnimeList: const []),
+          isExpanded: false,
+        ),
+      );
     }
-    return SafeArea(child: _genreBody(context));
+    return SafeArea(child: _genreBody(context, pageState));
   }
 
-  Widget _genreBody(BuildContext context) {
+  Widget _genreBody(
+    BuildContext context,
+    GenrePageState pageState, {
+    bool? isExpanded,
+  }) {
     return Container(
       color: screenBackground,
       child: Column(
@@ -141,33 +125,32 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
                   valueListenable: expandedNotifier,
                   builder: (BuildContext context, bool value, Widget? child) {
                     return GenreSection(
-                      genreStates: genreController.genreStates,
-                      isExpanded: value,
+                      genreStates: pageState.genreStates,
+                      isExpanded: isExpanded ?? value,
                       onGenresExpanded: (expanded) {
                         expandedNotifier.value = expanded;
                       },
                       onGenresSelected: (fullList) {
-                        // 保持全量列表，只同步选中状态
-                        genreController.genreStates = fullList;
+                        // 保持全量列表，只同步选中状态（内部会持久化）
+                        ref
+                            .read(genreControllerProvider.notifier)
+                            .updateSelections(fullList);
                         // update searchTags provider
                         updateSearchTags();
-                        // update prefs
-                        saveSelectedGenres();
                       },
                     );
                   },
                 ),
                 const SliverDivider(),
                 SortPicker(
-                  selectedSort: genreController.selectedSort,
+                  selectedSort: pageState.selectedSort,
                   onSortSelected: (sorting) {
-                    genreController.selectedSort = sorting;
-                    setState(() {});
+                    ref.read(genreControllerProvider.notifier).setSort(sorting);
                   },
                   useSliver: true,
                 ),
                 VerticalAnimeList(
-                  animes: genreController.currentAnimeList,
+                  animes: pageState.currentAnimeList,
                   onAnimeTap: (animeId) {
                     context.router.push(AnimeDetailRoute(animeId: animeId));
                   },
@@ -185,13 +168,12 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
     final query = ref.read(searchTextProvider).trim();
     // read tag provider（可能有多个，逐个并入）
     final searchTags = ref.read(searchTagProvider);
-    final requested = await genreController.search(query, searchTags);
+    final requested =
+        await ref.read(genreControllerProvider.notifier).search(query, searchTags);
     if (!requested || !mounted) {
       return;
     }
-    setState(() {
-      expandedNotifier.value = true;
-    });
+    expandedNotifier.value = true;
   }
 }
 

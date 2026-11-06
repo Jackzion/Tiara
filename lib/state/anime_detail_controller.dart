@@ -3,36 +3,55 @@ import 'package:movies/data/models/anime_character.dart';
 import 'package:movies/data/models/anime_details.dart';
 import 'package:movies/data/models/anime_extras.dart';
 import 'package:movies/data/models/anime_trailer.dart';
-import 'package:movies/data/repositories/anime_repository.dart';
-import 'package:movies/data/repositories/favorite_repository.dart';
+import 'package:movies/providers.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-/// 动漫详情页控制器
-/// 持有详情/预告/角色/横幅的加载结果，提供收藏操作
-class AnimeDetailController {
-  AnimeDetailController({
-    required this.animeRepository,
-    required this.favoriteRepository,
-    required this.animeId,
+part 'anime_detail_controller.g.dart';
+
+/// 动漫详情页数据
+class AnimeDetailState {
+  const AnimeDetailState({
+    this.animeDetails,
+    this.bannerImage,
+    this.trailerVideos = const [],
+    this.characters = const [],
+    this.isFavorite = false,
   });
 
-  final AnimeRepository animeRepository;
-  final FavoriteRepository favoriteRepository;
-  final int animeId;
+  final AnimeDetails? animeDetails;
+  final String? bannerImage;
+  final List<AnimeTrailer> trailerVideos;
+  final List<AnimeCharacter> characters;
+  final bool isFavorite;
 
-  AnimeDetails? animeDetails;
-  String? bannerImage;
-  List<AnimeTrailer> trailerVideos = [];
-  List<AnimeCharacter> characters = [];
-
-  Future<void>? _loadFuture;
-
-  /// 加载详情数据（记忆化：窗口缩放 / rebuild 不得重新拉接口）
-  Future<void> load() {
-    return _loadFuture ??= _loadData();
+  AnimeDetailState copyWith({
+    AnimeDetails? animeDetails,
+    String? bannerImage,
+    List<AnimeTrailer>? trailerVideos,
+    List<AnimeCharacter>? characters,
+    bool? isFavorite,
+  }) {
+    return AnimeDetailState(
+      animeDetails: animeDetails ?? this.animeDetails,
+      bannerImage: bannerImage ?? this.bannerImage,
+      trailerVideos: trailerVideos ?? this.trailerVideos,
+      characters: characters ?? this.characters,
+      isFavorite: isFavorite ?? this.isFavorite,
+    );
   }
+}
 
-  Future<void> _loadData() async {
-    animeDetails = await animeRepository.getAnimeDetails(animeId);
+/// 动漫详情页控制器（family: animeId，autoDispose 随页面销毁）
+/// 只要还有任何一处 `ref.watch` / `ref.listen` 在监听这个 Provider → 不会销毁。
+/// build 一次性加载详情/预告/角色/横幅，Riverpod 记忆化保证 rebuild 不重拉
+@riverpod
+class AnimeDetailController extends _$AnimeDetailController {
+  @override
+  Future<AnimeDetailState> build(int animeId) async {
+    final animeRepository = ref.read(animeRepositoryProvider);
+    final favoriteRepository = ref.read(favoriteRepositoryProvider);
+
+    final animeDetails = await animeRepository.getAnimeDetails(animeId);
 
     // 按 animeId 补充 bannerImage（AniList），与视频/角色并行加载
     String? nameJa;
@@ -51,17 +70,27 @@ class AnimeDetailController {
       animeRepository.getAnimeCharacters(animeId),
       animeRepository.getExtras(animeId, nameJa, nameCn),
     ]);
-    trailerVideos = results[0] as List<AnimeTrailer>;
-    characters = results[1] as List<AnimeCharacter>;
-    // 从 extras 中获取 bannerImage（可能为空）
-    bannerImage = (results[2] as AnimeExtras).bannerImage;
+
+    return AnimeDetailState(
+      animeDetails: animeDetails,
+      trailerVideos: results[0] as List<AnimeTrailer>,
+      characters: results[1] as List<AnimeCharacter>,
+      // 从 extras 中获取 bannerImage（可能为空）
+      bannerImage: (results[2] as AnimeExtras).bannerImage,
+      isFavorite: favoriteRepository.isFavorite(animeId),
+    );
   }
 
-  /// 是否已收藏
-  bool isFavorite() => favoriteRepository.isFavorite(animeId);
-
   /// 切换收藏状态
-  Future<void> toggleFavorite() {
-    return favoriteRepository.toggleFavorite(Anime(bangumiId: animeId));
+  Future<void> toggleFavorite() async {
+    final favoriteRepository = ref.read(favoriteRepositoryProvider);
+    await favoriteRepository.toggleFavorite(Anime(bangumiId: animeId));
+    if (!ref.mounted) {
+      return;
+    }
+    // change state , ui who listens this provider will rebuild
+    state = AsyncData(
+      state.value!.copyWith(isFavorite: favoriteRepository.isFavorite(animeId)),
+    );
   }
 }

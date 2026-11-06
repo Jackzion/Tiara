@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:movies/providers.dart';
 import 'package:movies/router/app_routes.dart';
+import 'package:movies/state/home_controller.dart';
 import 'package:movies/ui/screens/home/home_screen_image.dart';
 import 'package:movies/ui/screens/home/title_row.dart';
 import 'package:movies/ui/screens/home/horiz_animes.dart';
@@ -33,46 +34,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget buildScreen() {
-    final homeController = ref.read(homeControllerProvider);
+    final homeAsync = ref.watch(homeControllerProvider);
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-      body: FutureBuilder(
-        future: homeController.loadAll(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const NotReady();
-          }
-          return SingleChildScrollView(
-            child: Container(
-              color: screenBackground,
-              child: Column(
-                children: [
-                  HomeScreenImage(
-                    onAnimeTap: onAnimeTap,
-                  ),
-                  TitleRow(text: 'trending ', onMoreClicked: () {}),
-                  HorizontalAnimes(
-                    animes: homeController.trendingAnimes,
-                    onAnimeTap: onAnimeTap,
-                    animeType: AnimeType.trending,
-                  ),
-                  TitleRow(text: 'popular ', onMoreClicked: () {}),
-                  HorizontalAnimes(
-                    animes: homeController.popularAnimes,
-                    onAnimeTap: onAnimeTap,
-                    animeType: AnimeType.popular,
-                  ),
-                  TitleRow(text: 'top-rated ', onMoreClicked: () {}),
-                  HorizontalAnimes(
-                    animes: homeController.topRatedAnimes,
-                    onAnimeTap: onAnimeTap,
-                    animeType: AnimeType.topRated,
-                  ),
-                ],
-              ),
+      body: homeAsync.when(
+        loading: () => const NotReady(),
+        error: (e, st) => Text(e.toString()),
+        data: (home) => SingleChildScrollView(
+          child: Container(
+            color: screenBackground,
+            child: Column(
+              children: [
+                HomeScreenImage(
+                  onAnimeTap: onAnimeTap,
+                  nowPlayingAnimes: home.nowPlayingAnimes,
+                ),
+                TitleRow(text: 'trending ', onMoreClicked: () {}),
+                HorizontalAnimes(
+                  animes: home.trendingAnimes,
+                  onAnimeTap: onAnimeTap,
+                  animeType: AnimeType.trending,
+                ),
+                TitleRow(text: 'popular ', onMoreClicked: () {}),
+                HorizontalAnimes(
+                  animes: home.popularAnimes,
+                  onAnimeTap: onAnimeTap,
+                  animeType: AnimeType.popular,
+                ),
+                TitleRow(text: 'top-rated ', onMoreClicked: () {}),
+                HorizontalAnimes(
+                  animes: home.topRatedAnimes,
+                  onAnimeTap: onAnimeTap,
+                  animeType: AnimeType.topRated,
+                ),
+              ],
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }

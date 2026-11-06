@@ -21,12 +21,6 @@ class FavoriteScreen extends ConsumerStatefulWidget {
 }
 
 class _FavoriteScreenState extends ConsumerState<FavoriteScreen> {
-  /// 本页控制器（排序 + 收藏操作）
-  late final FavoriteController favoriteController =
-      FavoriteController(ref.read(favoriteRepositoryProvider));
-
-  List<DBFavorite> currentFavorites = [];
-
   @override
   Widget build(BuildContext context) {
     // 数据层就绪（收藏缓存预热完成）后才渲染
@@ -39,15 +33,17 @@ class _FavoriteScreenState extends ConsumerState<FavoriteScreen> {
   }
 
   Widget buildScreen() {
+    // 收藏列表流：数据库变更自动推送，删除后无需手动刷新
+    final favoritesAsync = ref.watch(favoriteListProvider);
+    // 排序方式变化自动 rebuild
+    final selectedSort = ref.watch(favoriteControllerProvider);
     return SafeArea(
-      child: StreamBuilder<List<DBFavorite>>(
-        stream: favoriteController.stream(),
-        builder: (context, snapshot) {
-          if ((snapshot.connectionState != ConnectionState.active) &&
-              (snapshot.connectionState != ConnectionState.done)) {
-            return const NotReady();
-          }
-          currentFavorites = favoriteController.sortFavorites(snapshot.requireData);
+      child: favoritesAsync.when(
+        loading: () => const NotReady(),
+        error: (e, st) => Text(e.toString()),
+        data: (favorites) {
+          final currentFavorites =
+              ref.read(favoriteControllerProvider.notifier).sortFavorites(favorites);
           return Scaffold(
             body: Container(
               color: screenBackground,
@@ -75,12 +71,12 @@ class _FavoriteScreenState extends ConsumerState<FavoriteScreen> {
                           ),
                         ),
                         SortPicker(
-                          selectedSort: favoriteController.selectedSort,
+                          selectedSort: selectedSort,
                           useSliver: true,
                           onSortSelected: (sorting) {
-                            setState(() {
-                              favoriteController.selectedSort = sorting;
-                            });
+                            ref
+                                .read(favoriteControllerProvider.notifier)
+                                .setSort(sorting);
                           },
                         ),
                         VerticalFavoriteList(
@@ -90,7 +86,9 @@ class _FavoriteScreenState extends ConsumerState<FavoriteScreen> {
                                 .push(AnimeDetailRoute(animeId: animeId));
                           },
                           onFavoritesTap: (DBFavorite favorite) {
-                            removeFavorite(favorite);
+                            ref
+                                .read(favoriteControllerProvider.notifier)
+                                .removeFavorite(favorite);
                           },
                         ),
                       ],
@@ -103,11 +101,5 @@ class _FavoriteScreenState extends ConsumerState<FavoriteScreen> {
         },
       ),
     );
-  }
-
-  /// 移除收藏
-  Future removeFavorite(DBFavorite favorite) async {
-    await favoriteController.removeFavorite(favorite);
-    setState(() {});
   }
 }

@@ -9,7 +9,6 @@ import 'package:movies/data/repositories/rules_repository.dart';
 import 'package:movies/network/rule_engine.dart';
 import 'package:movies/router/app_routes.dart';
 import 'package:movies/services/video_source/webview_video_source_service.dart';
-import 'package:movies/state/home_controller.dart';
 import 'package:movies/utils/prefs.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -69,12 +68,6 @@ Future<void> dataReady(Ref ref) async {
   await ref.read(animeRepositoryProvider).setup();
   await ref.read(favoriteRepositoryProvider).setup();
 }
-
-/// 首页控制器（四个横栏列表 + 一次性加载）
-/// keepAlive：列表在会话内复用，切换 Tab 不重新拉接口
-@Riverpod(keepAlive: true)
-HomeController homeController(Ref ref) =>
-    HomeController(ref.read(animeRepositoryProvider));
 
 /// Hero 动画标签状态提供者
 /// 用于在不同页面间传递 Hero 动画的唯一标签

@@ -47,8 +47,12 @@ class HomeScreenImage extends ConsumerStatefulWidget {
   /// 点击回调函数
   final OnAnimeTap onAnimeTap;
 
+  /// 本季放送列表（由首页 HomeController 提供）
+  final List<Anime> nowPlayingAnimes;
+
   const HomeScreenImage({
     required this.onAnimeTap,
+    required this.nowPlayingAnimes,
     super.key,
   });
 
@@ -82,7 +86,7 @@ class _HomeScreenImageState extends ConsumerState<HomeScreenImage> {
 
   @override
   Widget build(BuildContext context) {
-    final animes = ref.read(homeControllerProvider).nowPlayingAnimes;
+    final animes = widget.nowPlayingAnimes;
     if (animes.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -403,7 +407,7 @@ class _HomeScreenImageState extends ConsumerState<HomeScreenImage> {
 
   /// 加载当前动漫的补充数据（宽幅横幅/简介），完成后刷新界面
   void loadExtras() {
-    final animes = ref.read(homeControllerProvider).nowPlayingAnimes;
+    final animes = widget.nowPlayingAnimes;
     if (animes.isEmpty) {
       return;
     }
@@ -422,7 +426,7 @@ class _HomeScreenImageState extends ConsumerState<HomeScreenImage> {
       if (!mounted) {
         return;
       }
-      final count = ref.read(homeControllerProvider).nowPlayingAnimes.length;
+      final count = widget.nowPlayingAnimes.length;
       if (count == 0) {
         return;
       }

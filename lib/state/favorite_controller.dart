@@ -1,25 +1,28 @@
 import 'package:collection/collection.dart';
 import 'package:movies/data/database/models/database_models.dart';
-import 'package:movies/data/repositories/favorite_repository.dart';
+import 'package:movies/providers.dart';
 import 'package:movies/utils/utils.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-/// 收藏页控制器
+part 'favorite_controller.g.dart';
+
+/// 收藏列表流（数据库变更自动推送）
+@riverpod
+Stream<List<DBFavorite>> favoriteList(Ref ref) {
+  return ref.read(favoriteRepositoryProvider).streamFavorites();
+}
+
+/// 收藏页控制器（autoDispose：随页面销毁）
 /// 持有排序方式，负责收藏列表排序与删除
-class FavoriteController {
-  FavoriteController(this.favoriteRepository);
-
-  final FavoriteRepository favoriteRepository;
-
-  /// 排序方式
-  Sorting selectedSort = Sorting.aToz;
-
-  /// 收藏列表流（来自数据库）
-  Stream<List<DBFavorite>> stream() => favoriteRepository.streamFavorites();
+@riverpod
+class FavoriteController extends _$FavoriteController {
+  @override
+  Sorting build() => Sorting.aToz;
 
   /// 按当前排序方式排序收藏列表
   List<DBFavorite> sortFavorites(List<DBFavorite> source) {
     return source.sorted((a, b) {
-      switch (selectedSort) {
+      switch (state) {
         case Sorting.aToz:
           return a.title.compareTo(b.title);
         case Sorting.zToa:
@@ -32,8 +35,13 @@ class FavoriteController {
     });
   }
 
-  /// 移除收藏
+  /// 切换排序方式
+  void setSort(Sorting sorting) {
+    state = sorting;
+  }
+
+  /// 移除收藏（favoriteList 流会自动推送新列表，UI 无需手动刷新）
   Future<bool> removeFavorite(DBFavorite favorite) {
-    return favoriteRepository.removeFavorite(favorite.id);
+    return ref.read(favoriteRepositoryProvider).removeFavorite(favorite.id);
   }
 }

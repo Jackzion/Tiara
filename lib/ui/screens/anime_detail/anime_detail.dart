@@ -31,21 +31,6 @@ class AnimeDetail extends ConsumerStatefulWidget {
 }
 
 class _AnimeDetailState extends ConsumerState<AnimeDetail> {
-  /// 本页控制器（详情/预告/角色/横幅 + 收藏操作）
-  late final AnimeDetailController detailController = AnimeDetailController(
-    animeRepository: ref.read(animeRepositoryProvider),
-    favoriteRepository: ref.read(favoriteRepositoryProvider),
-    animeId: widget.animeId,
-  );
-
-  final ValueNotifier<bool> _favoriteNotifier = ValueNotifier(false);
-
-  @override
-  void dispose() {
-    _favoriteNotifier.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     // 数据层就绪（收藏缓存预热完成）后才渲染
@@ -58,30 +43,28 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
   }
 
   Widget buildScreen() {
-    return FutureBuilder<void>(
-      // 缓存 Future：窗口缩放 / rebuild 不得重新拉接口
-      future: detailController.load(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
+    // 详情数据（family: animeId），controller 状态变化自动 rebuild
+    final detailAsync =
+        ref.watch(animeDetailControllerProvider(widget.animeId));
+    return detailAsync.when(
+      loading: () => const NotReady(),
+      error: (e, st) {
+        logMessage('Error: ${e.toString()}');
+        return Text(e.toString());
+      },
+      data: (detailState) {
+        if (detailState.animeDetails == null) {
           return const NotReady();
         }
-        if (snapshot.hasError) {
-          logMessage('Error: ${snapshot.error.toString()}');
-          return Text(snapshot.error.toString());
-        }
-        if (detailController.animeDetails == null) {
-          return const NotReady();
-        }
-        return buildDetailScreen();
+        return buildDetailScreen(detailState);
       },
     );
   }
 
-  Widget buildDetailScreen() {
-    final details = detailController.animeDetails!;
-    final trailerVideos = detailController.trailerVideos;
-    final characters = detailController.characters;
-    _favoriteNotifier.value = detailController.isFavorite();
+  Widget buildDetailScreen(AnimeDetailState detailState) {
+    final details = detailState.animeDetails!;
+    final trailerVideos = detailState.trailerVideos;
+    final characters = detailState.characters;
 
     return SafeArea(
       child: Scaffold(
@@ -108,20 +91,17 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
                   // 顶部渐进色背景：图源 bannerImage（animeId 对应 AniList）
                   DetailBanner(
                     details: details,
-                    bannerImage: detailController.bannerImage,
+                    bannerImage: detailState.bannerImage,
                   ),
                   // 左完整 detail.image + 元信息；右章节/简介/标签
                   _buildPosterAndOverview(details),
-                  ValueListenableBuilder<bool>(
-                    valueListenable: _favoriteNotifier,
-                    builder: (BuildContext context, bool value, Widget? child) {
-                      return ButtonRow(
-                        favoriteSelected: _favoriteNotifier.value,
-                        onFavoriteSelected: () async {
-                          await detailController.toggleFavorite();
-                          _favoriteNotifier.value = detailController.isFavorite();
-                        },
-                      );
+                  ButtonRow(
+                    favoriteSelected: detailState.isFavorite,
+                    onFavoriteSelected: () {
+                      ref
+                          .read(animeDetailControllerProvider(widget.animeId)
+                              .notifier)
+                          .toggleFavorite();
                     },
                   ),
                   if (trailerVideos.isNotEmpty) ...[

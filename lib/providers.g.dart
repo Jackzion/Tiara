@@ -441,55 +441,6 @@ final class DataReadyProvider
 
 String _$dataReadyHash() => r'0729bd70c76e048010ab0801a2f51d785ae241ba';
 
-/// 首页控制器（四个横栏列表 + 一次性加载）
-/// keepAlive：列表在会话内复用，切换 Tab 不重新拉接口
-
-@ProviderFor(homeController)
-final homeControllerProvider = HomeControllerProvider._();
-
-/// 首页控制器（四个横栏列表 + 一次性加载）
-/// keepAlive：列表在会话内复用，切换 Tab 不重新拉接口
-
-final class HomeControllerProvider
-    extends $FunctionalProvider<HomeController, HomeController, HomeController>
-    with $Provider<HomeController> {
-  /// 首页控制器（四个横栏列表 + 一次性加载）
-  /// keepAlive：列表在会话内复用，切换 Tab 不重新拉接口
-  HomeControllerProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'homeControllerProvider',
-        isAutoDispose: false,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() => _$homeControllerHash();
-
-  @$internal
-  @override
-  $ProviderElement<HomeController> $createElement($ProviderPointer pointer) =>
-      $ProviderElement(pointer);
-
-  @override
-  HomeController create(Ref ref) {
-    return homeController(ref);
-  }
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(HomeController value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<HomeController>(value),
-    );
-  }
-}
-
-String _$homeControllerHash() => r'8e123ceb732037bbeb08323df60ebad4e0b5e112';
-
 /// 无头 WebView 取流服务（应用级单例）
 /// keepAlive: 整个 App 生命周期内复用同一个 HeadlessWebview
 
