@@ -262,13 +262,8 @@ final driftDatabaseProvider = DriftDatabaseProvider._();
 /// Drift 数据库提供者
 
 final class DriftDatabaseProvider
-    extends
-        $FunctionalProvider<
-          AsyncValue<IDatabase>,
-          IDatabase,
-          FutureOr<IDatabase>
-        >
-    with $FutureModifier<IDatabase>, $FutureProvider<IDatabase> {
+    extends $FunctionalProvider<IDatabase, IDatabase, IDatabase>
+    with $Provider<IDatabase> {
   /// Drift 数据库提供者
   DriftDatabaseProvider._()
     : super(
@@ -286,63 +281,165 @@ final class DriftDatabaseProvider
 
   @$internal
   @override
-  $FutureProviderElement<IDatabase> $createElement($ProviderPointer pointer) =>
-      $FutureProviderElement(pointer);
+  $ProviderElement<IDatabase> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
 
   @override
-  FutureOr<IDatabase> create(Ref ref) {
+  IDatabase create(Ref ref) {
     return driftDatabase(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(IDatabase value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<IDatabase>(value),
+    );
   }
 }
 
-String _$driftDatabaseHash() => r'a04bf503f28f04c19d640b75ca4b9c42b7d25807';
+String _$driftDatabaseHash() => r'583c4a340ecf3aa018553a85ac492361a734c346';
 
-/// 动漫视图模型提供者
-/// 异步加载，等待 setup 完成后返回 AnimeViewModel
+/// 动漫数据仓库提供者（取数 + 缓存，无页面状态）
 
-@ProviderFor(animeViewModel)
-final animeViewModelProvider = AnimeViewModelProvider._();
+@ProviderFor(animeRepository)
+final animeRepositoryProvider = AnimeRepositoryProvider._();
 
-/// 动漫视图模型提供者
-/// 异步加载，等待 setup 完成后返回 AnimeViewModel
+/// 动漫数据仓库提供者（取数 + 缓存，无页面状态）
 
-final class AnimeViewModelProvider
+final class AnimeRepositoryProvider
     extends
-        $FunctionalProvider<
-          AsyncValue<AnimeViewModel>,
-          AnimeViewModel,
-          FutureOr<AnimeViewModel>
-        >
-    with $FutureModifier<AnimeViewModel>, $FutureProvider<AnimeViewModel> {
-  /// 动漫视图模型提供者
-  /// 异步加载，等待 setup 完成后返回 AnimeViewModel
-  AnimeViewModelProvider._()
+        $FunctionalProvider<AnimeRepository, AnimeRepository, AnimeRepository>
+    with $Provider<AnimeRepository> {
+  /// 动漫数据仓库提供者（取数 + 缓存，无页面状态）
+  AnimeRepositoryProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
-        name: r'animeViewModelProvider',
+        name: r'animeRepositoryProvider',
         isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
 
   @override
-  String debugGetCreateSourceHash() => _$animeViewModelHash();
+  String debugGetCreateSourceHash() => _$animeRepositoryHash();
 
   @$internal
   @override
-  $FutureProviderElement<AnimeViewModel> $createElement(
-    $ProviderPointer pointer,
-  ) => $FutureProviderElement(pointer);
+  $ProviderElement<AnimeRepository> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
 
   @override
-  FutureOr<AnimeViewModel> create(Ref ref) {
-    return animeViewModel(ref);
+  AnimeRepository create(Ref ref) {
+    return animeRepository(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AnimeRepository value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<AnimeRepository>(value),
+    );
   }
 }
 
-String _$animeViewModelHash() => r'fa2aa819a77ba564ee66efbaa2aef9de2757fffe';
+String _$animeRepositoryHash() => r'1e786ee705ff3d46f5d0b3abda3accf7ce75aa6d';
+
+/// 收藏仓库提供者（收藏 CRUD + 内存缓存）
+
+@ProviderFor(favoriteRepository)
+final favoriteRepositoryProvider = FavoriteRepositoryProvider._();
+
+/// 收藏仓库提供者（收藏 CRUD + 内存缓存）
+
+final class FavoriteRepositoryProvider
+    extends
+        $FunctionalProvider<
+          FavoriteRepository,
+          FavoriteRepository,
+          FavoriteRepository
+        >
+    with $Provider<FavoriteRepository> {
+  /// 收藏仓库提供者（收藏 CRUD + 内存缓存）
+  FavoriteRepositoryProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'favoriteRepositoryProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$favoriteRepositoryHash();
+
+  @$internal
+  @override
+  $ProviderElement<FavoriteRepository> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  FavoriteRepository create(Ref ref) {
+    return favoriteRepository(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(FavoriteRepository value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<FavoriteRepository>(value),
+    );
+  }
+}
+
+String _$favoriteRepositoryHash() =>
+    r'21480af462f0c53518320d4a633ed889b629eac1';
+
+/// 数据层就绪门：各仓库 setup（标签/收藏/补充缓存预热）完成后 UI 才渲染
+/// 替代原 AnimeViewModel.setup() 的启动编排
+
+@ProviderFor(dataReady)
+final dataReadyProvider = DataReadyProvider._();
+
+/// 数据层就绪门：各仓库 setup（标签/收藏/补充缓存预热）完成后 UI 才渲染
+/// 替代原 AnimeViewModel.setup() 的启动编排
+
+final class DataReadyProvider
+    extends $FunctionalProvider<AsyncValue<void>, void, FutureOr<void>>
+    with $FutureModifier<void>, $FutureProvider<void> {
+  /// 数据层就绪门：各仓库 setup（标签/收藏/补充缓存预热）完成后 UI 才渲染
+  /// 替代原 AnimeViewModel.setup() 的启动编排
+  DataReadyProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'dataReadyProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$dataReadyHash();
+
+  @$internal
+  @override
+  $FutureProviderElement<void> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<void> create(Ref ref) {
+    return dataReady(ref);
+  }
+}
+
+String _$dataReadyHash() => r'0729bd70c76e048010ab0801a2f51d785ae241ba';
 
 /// 无头 WebView 取流服务（应用级单例）
 /// keepAlive: 整个 App 生命周期内复用同一个 HeadlessWebview

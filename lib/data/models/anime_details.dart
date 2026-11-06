@@ -1,4 +1,5 @@
 import 'package:movies/data/models/genre.dart';
+import 'package:movies/data/parsing/anime_json.dart';
 
 /// 动漫详情数据模型
 /// 数据来源：Bangumi 条目详情
@@ -68,12 +69,12 @@ class AnimeDetails {
       titleJapanese: name,
       image: images?['large'] as String? ?? images?['medium'] as String? ?? '',
       type: json['platform'] as String?,
-      episodes: _parseInt(json['eps'] ?? json['total_episodes']),
-      score: _parseDouble(rating?['score']),
-      rank: _parseInt(rating?['rank']),
-      members: _parseCollectionTotal(collection),
+      episodes: parseInt(json['eps'] ?? json['total_episodes']),
+      score: parseDouble(rating?['score']),
+      rank: parseInt(rating?['rank']),
+      members: parseCollectionTotal(collection),
       synopsis: json['summary'] as String?,
-      year: _parseYear(date),
+      year: parseYear(date),
       genres: _parseGenres(json['tags'] as List<dynamic>?),
     );
   }
@@ -106,7 +107,7 @@ class AnimeDetails {
         Genre(
           malId: genres.length + 1,
           name: name,
-          count: _parseInt(tag['count']),
+          count: parseInt(tag['count']),
         ),
       );
       if (genres.length >= 16) {
@@ -114,41 +115,5 @@ class AnimeDetails {
       }
     }
     return genres.isEmpty ? null : genres;
-  }
-
-  static int? _parseCollectionTotal(Map<String, dynamic>? collection) {
-    if (collection == null) {
-      return null;
-    }
-    var total = 0;
-    var hasValue = false;
-    for (final value in collection.values) {
-      if (value is num) {
-        total += value.toInt();
-        hasValue = true;
-      }
-    }
-    return hasValue ? total : null;
-  }
-
-  static int? _parseYear(String? date) {
-    if (date == null || date.length < 4) {
-      return null;
-    }
-    return int.tryParse(date.substring(0, 4));
-  }
-
-  static int? _parseInt(dynamic value) {
-    if (value == null) {
-      return null;
-    }
-    return value is num ? value.toInt() : int.tryParse(value.toString());
-  }
-
-  static double? _parseDouble(dynamic value) {
-    if (value == null) {
-      return null;
-    }
-    return value is num ? value.toDouble() : double.tryParse(value.toString());
   }
 }

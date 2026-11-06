@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:movies/data/models/anime.dart';
 import 'package:movies/providers.dart';
-import 'package:movies/ui/anime_viewmodel.dart';
 import 'package:movies/utils/utils.dart';
 import 'package:movies/ui/theme/theme.dart';
 
@@ -45,15 +44,15 @@ const thumbPadding = EdgeInsets.symmetric(horizontal: 24, vertical: 16);
 /// 横幅作为模糊背景，前景为完整封面海报与信息面板，缩略图轮播浮于背景之上
 /// 点击封面/播放按钮跳转详情页，收藏按钮更新收藏状态
 class HomeScreenImage extends ConsumerStatefulWidget {
-  /// 动漫视图模型
-  final AnimeViewModel animeViewModel;
-
   /// 点击回调函数
   final OnAnimeTap onAnimeTap;
 
+  /// 本季放送列表（由首页 HomeController 提供）
+  final List<Anime> nowPlayingAnimes;
+
   const HomeScreenImage({
-    required this.animeViewModel,
     required this.onAnimeTap,
+    required this.nowPlayingAnimes,
     super.key,
   });
 
@@ -87,7 +86,7 @@ class _HomeScreenImageState extends ConsumerState<HomeScreenImage> {
 
   @override
   Widget build(BuildContext context) {
-    final animes = widget.animeViewModel.nowPlayingAnimes;
+    final animes = widget.nowPlayingAnimes;
     if (animes.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -299,7 +298,7 @@ class _HomeScreenImageState extends ConsumerState<HomeScreenImage> {
 
   /// 收藏按钮（点击切换收藏状态并更新收藏列表）
   Widget buildFavoriteButton(Anime anime) {
-    final favoriteSelected = widget.animeViewModel.isFavorite(anime.animeId);
+    final favoriteSelected = ref.read(favoriteRepositoryProvider).isFavorite(anime.animeId);
     return GestureDetector(
       onTap: () => toggleFavorite(anime),
       child: Container(
@@ -392,8 +391,7 @@ class _HomeScreenImageState extends ConsumerState<HomeScreenImage> {
 
   /// 跳转到动漫详情页
   void openDetail(Anime anime) {
-    ref.read(heroTagProvider.notifier).state = '${anime.image}swiper';
-    widget.onAnimeTap(anime.animeId);
+    widget.onAnimeTap(anime.animeId, '${anime.image}swiper');
   }
 
   /// 切换到指定缩略图，重置自动轮播计时器
@@ -408,11 +406,11 @@ class _HomeScreenImageState extends ConsumerState<HomeScreenImage> {
 
   /// 加载当前动漫的补充数据（宽幅横幅/简介），完成后刷新界面
   void loadExtras() {
-    final animes = widget.animeViewModel.nowPlayingAnimes;
+    final animes = widget.nowPlayingAnimes;
     if (animes.isEmpty) {
       return;
     }
-    widget.animeViewModel.ensureExtras(animes[currentIndex]).then((_) {
+    ref.read(animeRepositoryProvider).ensureExtras(animes[currentIndex]).then((_) {
       if (mounted) {
         setState(() {});
       }
@@ -427,7 +425,7 @@ class _HomeScreenImageState extends ConsumerState<HomeScreenImage> {
       if (!mounted) {
         return;
       }
-      final count = widget.animeViewModel.nowPlayingAnimes.length;
+      final count = widget.nowPlayingAnimes.length;
       if (count == 0) {
         return;
       }
@@ -458,7 +456,7 @@ class _HomeScreenImageState extends ConsumerState<HomeScreenImage> {
 
   /// 切换动漫收藏状态并刷新界面
   void toggleFavorite(Anime anime) {
-    widget.animeViewModel.toggleFavorite(anime);
+    ref.read(favoriteRepositoryProvider).toggleFavorite(anime);
     setState(() {});
   }
 }

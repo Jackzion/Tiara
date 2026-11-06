@@ -15,11 +15,16 @@ part of 'app_routes.dart';
 class AnimeDetailRoute extends PageRouteInfo<AnimeDetailRouteArgs> {
   AnimeDetailRoute({
     required int animeId,
+    String? heroTag,
     Key? key,
     List<PageRouteInfo>? children,
   }) : super(
          AnimeDetailRoute.name,
-         args: AnimeDetailRouteArgs(animeId: animeId, key: key),
+         args: AnimeDetailRouteArgs(
+           animeId: animeId,
+           heroTag: heroTag,
+           key: key,
+         ),
          initialChildren: children,
        );
 
@@ -29,32 +34,36 @@ class AnimeDetailRoute extends PageRouteInfo<AnimeDetailRouteArgs> {
     name,
     builder: (data) {
       final args = data.argsAs<AnimeDetailRouteArgs>();
-      return AnimeDetail(args.animeId, key: args.key);
+      return AnimeDetail(args.animeId, heroTag: args.heroTag, key: args.key);
     },
   );
 }
 
 class AnimeDetailRouteArgs {
-  const AnimeDetailRouteArgs({required this.animeId, this.key});
+  const AnimeDetailRouteArgs({required this.animeId, this.heroTag, this.key});
 
   final int animeId;
+
+  final String? heroTag;
 
   final Key? key;
 
   @override
   String toString() {
-    return 'AnimeDetailRouteArgs{animeId: $animeId, key: $key}';
+    return 'AnimeDetailRouteArgs{animeId: $animeId, heroTag: $heroTag, key: $key}';
   }
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     if (other is! AnimeDetailRouteArgs) return false;
-    return animeId == other.animeId && key == other.key;
+    return animeId == other.animeId &&
+        heroTag == other.heroTag &&
+        key == other.key;
   }
 
   @override
-  int get hashCode => animeId.hashCode ^ key.hashCode;
+  int get hashCode => animeId.hashCode ^ heroTag.hashCode ^ key.hashCode;
 }
 
 /// generated route for

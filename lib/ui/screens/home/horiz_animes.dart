@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:movies/data/models/anime.dart';
-import 'package:movies/ui/anime_viewmodel.dart';
 import 'package:movies/ui/widgets/anime_widget.dart';
 import 'package:movies/utils/utils.dart';
 
@@ -10,9 +9,6 @@ import 'package:movies/utils/utils.dart';
 class HorizontalAnimes extends StatefulWidget {
   /// 动漫列表数据
   final List<Anime> animes;
-
-  /// 动漫视图模型（收藏状态与横幅补充数据）
-  final AnimeViewModel animeViewModel;
 
   /// 点击回调函数
   final OnAnimeTap onAnimeTap;
@@ -24,7 +20,6 @@ class HorizontalAnimes extends StatefulWidget {
   final int itemCount;
 
   const HorizontalAnimes({
-    required this.animeViewModel,
     required this.onAnimeTap,
     required this.animes,
     required this.animeType,
@@ -178,7 +173,6 @@ class _HorizontalAnimesState extends State<HorizontalAnimes> {
         child: RepaintBoundary(
           child: AnimeWidget(
             anime: anime,
-            animeViewModel: widget.animeViewModel,
             onAnimeTap: widget.onAnimeTap,
             animeType: widget.animeType,
             expanded: expanded,

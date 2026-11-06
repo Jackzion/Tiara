@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_adaptive_scaffold/flutter_adaptive_scaffold.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_symbols_icons/symbols.dart';
-import 'package:movies/providers.dart';
+import 'package:movies/state/main_nav_index.dart';
 import 'package:movies/ui/menus.dart';
 import 'package:movies/ui/screens/favorites/favorite_screen.dart';
 import 'package:movies/ui/screens/genres/genre_screen.dart';
@@ -48,7 +48,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   ];
 
   void _onNavSelected(int navIndex) {
-    ref.read(currentNavIndexProvider.notifier).state = navIndex;
+    ref.read(currentNavIndexProvider.notifier).goTo(navIndex);
   }
 
   Future<void> _onMenuSelected(AppMenuAction action) async {
@@ -60,13 +60,13 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         );
         break;
       case AppMenuAction.home:
-        ref.read(currentNavIndexProvider.notifier).state = 0;
+        ref.read(currentNavIndexProvider.notifier).goTo(0);
         break;
       case AppMenuAction.genres:
-        ref.read(currentNavIndexProvider.notifier).state = 1;
+        ref.read(currentNavIndexProvider.notifier).goTo(1);
         break;
       case AppMenuAction.favorites:
-        ref.read(currentNavIndexProvider.notifier).state = 2;
+        ref.read(currentNavIndexProvider.notifier).goTo(2);
         break;
       case AppMenuAction.sources:
         await showSourceRulesDialog(context);

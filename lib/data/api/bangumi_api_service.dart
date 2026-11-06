@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
-import 'package:movies/network/request_throttle.dart';
-import 'package:movies/network/timing_interceptor.dart';
+import 'package:movies/data/api/request_throttle.dart';
+import 'package:movies/data/api/timing_interceptor.dart';
 
 /// Bangumi API 基础地址
 const String bangumiApiUrl = 'https://api.bgm.tv';

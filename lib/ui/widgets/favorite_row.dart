@@ -3,20 +3,17 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:movies/data/database/models/database_models.dart';
 import 'package:movies/utils/utils.dart';
-import 'package:movies/ui/anime_viewmodel.dart';
 import 'package:movies/ui/theme/theme.dart';
 
 /// 收藏动漫行展示组件
 class FavoriteRow extends StatelessWidget {
   final DBFavorite favorite;
-  final AnimeViewModel animeViewModel;
   final OnAnimeTap onAnimeTap;
   final OnFavoriteResultsTap onFavoritesTap;
 
   const FavoriteRow({
     super.key,
     required this.favorite,
-    required this.animeViewModel,
     required this.onAnimeTap,
     required this.onFavoritesTap,
   });
@@ -26,7 +23,7 @@ class FavoriteRow extends StatelessWidget {
     final imageUrl = favorite.posterPath;
 
     return GestureDetector(
-      onTap: () => onAnimeTap(favorite.animeId),
+      onTap: () => onAnimeTap(favorite.animeId, null),
       child: SizedBox(
         height: 148,
         child: Row(

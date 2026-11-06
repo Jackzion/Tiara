@@ -1,31 +1,33 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:movies/data/models/anime_details.dart';
-import 'package:movies/providers.dart';
 import 'package:movies/ui/theme/theme.dart';
 
 /// 动漫详情页左侧完整海报
 /// 展示完整封面 detail.image（主视觉），不做标题叠字；元信息放在海报下方
 /// 背景渐进色横幅由 DetailBanner 负责（图源 bannerImage）
-class DetailImage extends ConsumerStatefulWidget {
+class DetailImage extends StatefulWidget {
   /// 动漫详情数据
   final AnimeDetails details;
 
   /// 海报宽度
   final double width;
 
+  /// 来源页 Hero 标签；为空时不参与 Hero 动画
+  final String? heroTag;
+
   const DetailImage({
     required this.details,
     this.width = 240,
+    this.heroTag,
     super.key,
   });
 
   @override
-  ConsumerState<DetailImage> createState() => _DetailImageState();
+  State<DetailImage> createState() => _DetailImageState();
 }
 
-class _DetailImageState extends ConsumerState<DetailImage>
+class _DetailImageState extends State<DetailImage>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     duration: const Duration(seconds: 2),
@@ -51,8 +53,10 @@ class _DetailImageState extends ConsumerState<DetailImage>
 
   @override
   Widget build(BuildContext context) {
-    final heroTag = ref.watch(heroTagProvider);
     final imageUrl = widget.details.image;
+    // 无来源标签时用详情页本地标签：不参与跨页 Hero，只保证本页 Hero 标签唯一
+    final heroTag =
+        widget.heroTag ?? 'detail-poster-${widget.details.bangumiId}';
 
     // 参考页海报约 280×490，约 4:7；完整封面
     return AspectRatio(

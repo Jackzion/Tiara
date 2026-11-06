@@ -1,33 +1,35 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:movies/data/models/genre.dart';
 import 'package:movies/data/models/genre_state.dart';
-import 'package:movies/providers.dart';
 import 'package:movies/ui/theme/theme.dart';
 
 typedef OnGenresSelected = void Function(List<GenreState>);
 typedef OnGenresExpanded = void Function(bool);
+typedef OnRemoveExternalTag = void Function(String tag);
 
-class GenreSection extends ConsumerStatefulWidget {
+class GenreSection extends StatelessWidget {
   final bool isExpanded;
   final List<GenreState> genreStates;
+
+  /// 外部注入的临时 tag（详情页点标签），展示为前置 chip
+  final List<String> externalTags;
   final OnGenresExpanded onGenresExpanded;
   final OnGenresSelected onGenresSelected;
+  final OnRemoveExternalTag onRemoveExternalTag;
+
   const GenreSection({
     required this.genreStates,
+    required this.externalTags,
     required this.isExpanded,
     required this.onGenresExpanded,
     required this.onGenresSelected,
+    required this.onRemoveExternalTag,
     super.key,
   });
-  @override
-  ConsumerState<GenreSection> createState() => _GenreSectionState();
-}
 
-class _GenreSectionState extends ConsumerState<GenreSection> {
   @override
   Widget build(BuildContext context) {
-    var genreChips = getGenreChips();
+    var genreChips = getGenreChips(context);
     return SliverList(
       delegate: SliverChildListDelegate(
         [
@@ -38,7 +40,7 @@ class _GenreSectionState extends ConsumerState<GenreSection> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 InkWell(
-                  onTap: () => widget.onGenresExpanded(!widget.isExpanded),
+                  onTap: () => onGenresExpanded(!isExpanded),
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                     child: Row(
@@ -64,7 +66,7 @@ class _GenreSectionState extends ConsumerState<GenreSection> {
                         ),
                         const Spacer(),
                         Icon(
-                          widget.isExpanded
+                          isExpanded
                               ? Icons.keyboard_arrow_up
                               : Icons.keyboard_arrow_down,
                           color: Colors.white,
@@ -76,10 +78,9 @@ class _GenreSectionState extends ConsumerState<GenreSection> {
                 AnimatedSize(
                   duration: const Duration(milliseconds: 200),
                   curve: Curves.easeInOut,
-                  child: widget.isExpanded
+                  child: isExpanded
                       ? Padding(
                           padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                          // 流式排列：只保留间距，不按行列对齐
                           child: Wrap(
                             spacing: 8,
                             runSpacing: 8,
@@ -100,19 +101,17 @@ class _GenreSectionState extends ConsumerState<GenreSection> {
   /// 搜索 tags 中尚未出现在 genreStates 的部分，作为临时 chip 展示
   /// 与已有同名 chip 去重（search() 里也会对请求 tag 去重）
   List<String> get extraSearchTags {
-    final tags = ref.watch(searchTagProvider);
     return [
-      for (final tag in tags)
+      for (final tag in externalTags)
         if (tag.trim().isNotEmpty &&
-            !widget.genreStates.any((s) => s.genre.name == tag))
+            !genreStates.any((s) => s.genre.name == tag))
           tag,
     ];
   }
 
   // 生成标签 genre chips
-  List<Widget> getGenreChips() {
-    // watch tag provider - 自动响应变化，触发 rebuild
-    // 搜索 tags 仅作为临时选中项展示在最前，不写入 genreStates（build 期间不能有副作用）
+  List<Widget> getGenreChips(BuildContext context) {
+    // 搜索 tags 仅作为临时选中项展示在最前，不写入 genreStates
     final extras = extraSearchTags;
     final displayStates = [
       for (final tag in extras)
@@ -120,7 +119,7 @@ class _GenreSectionState extends ConsumerState<GenreSection> {
           genre: Genre(malId: 0, name: tag),
           isSelected: true,
         ),
-      ...widget.genreStates,
+      ...genreStates,
     ];
 
     return List<Widget>.generate(displayStates.length, (index) {
@@ -137,29 +136,25 @@ class _GenreSectionState extends ConsumerState<GenreSection> {
         ),
         selected: genreState.isSelected,
         onSelected: (selected) {
-          // 前 extras.length 个为搜索 tag chip：点击从列表移除该 tag，GenreScreen 监听后重新 search
+          // 前 extras.length 个为搜索 tag chip：点击从列表移除该 tag，由父组件重搜
           if (index < extras.length) {
-            final tags = List<String>.from(ref.read(searchTagProvider));
-            tags.remove(extras[index]);
-            ref.read(searchTagProvider.notifier).state = tags;
+            onRemoveExternalTag(extras[index]);
             return;
           }
-          // displayStates 前置了 tag chips 时，genreStates 下标需要回退用来获取 genreStates 真实index用来更新 isSelected
+          // displayStates 前置了 tag chips，genreStates 下标需要回退用来获取 genreStates 真实index用来更新 isSelected
           final genreIndex = index - extras.length;
-          setState(() {
-            widget.genreStates[genreIndex] = genreState.copyWith(
-              isSelected: selected,
-            );
-            // 回传全量列表，父组件只同步选中态，不覆盖为「仅已选」
-            widget.onGenresSelected(List<GenreState>.from(widget.genreStates));
-          });
+          genreStates[genreIndex] = genreState.copyWith(
+            isSelected: selected,
+          );
+          // 回传全量列表，父组件只同步选中态，不覆盖为「仅已选」
+          onGenresSelected(List<GenreState>.from(genreStates));
         },
       );
     });
   }
 
   List<GenreState> getSelectedGenres() {
-    return widget.genreStates.where((e) => e.isSelected).toList();
+    return genreStates.where((e) => e.isSelected).toList();
   }
 
   int totalSelected() {

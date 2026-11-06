@@ -3,15 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lumberdash/lumberdash.dart';
-import 'package:movies/data/models/anime.dart';
-import 'package:movies/data/models/anime_character.dart';
 import 'package:movies/data/models/anime_details.dart';
-import 'package:movies/data/models/anime_extras.dart';
-import 'package:movies/data/models/anime_trailer.dart';
 import 'package:movies/data/models/play_context.dart';
 import 'package:movies/providers.dart';
 import 'package:movies/router/app_routes.dart';
-import 'package:movies/ui/anime_viewmodel.dart';
+import 'package:movies/state/anime_detail_controller.dart';
+import 'package:movies/state/main_nav_index.dart';
+import 'package:movies/state/search_state.dart';
 import 'package:movies/ui/screens/anime_detail/anime_overview.dart';
 import 'package:movies/ui/screens/anime_detail/button_row.dart';
 import 'package:movies/ui/screens/anime_detail/detail_banner.dart';
@@ -28,65 +26,52 @@ import 'package:movies/ui/theme/theme.dart';
 @RoutePage(name: 'AnimeDetailRoute')
 class AnimeDetail extends ConsumerStatefulWidget {
   final int animeId;
-  const AnimeDetail(this.animeId, {super.key});
+
+  /// 来源页 Hero 标签（列表页点击处生成），配对海报 Hero 动画
+  /// autoRouter 会自动生成 heroTag 参数
+  final String? heroTag;
+
+  const AnimeDetail(this.animeId, {this.heroTag, super.key});
 
   @override
   ConsumerState<AnimeDetail> createState() => _AnimeDetailState();
 }
 
 class _AnimeDetailState extends ConsumerState<AnimeDetail> {
-  late AnimeViewModel animeViewModel;
-  AnimeDetails? animeDetails;
-  String? bannerImage;
-  List<AnimeTrailer> trailerVideos = [];
-  List<AnimeCharacter> characters = [];
-  /// 缓存 Future：为空说明未加载过，不为空说明 loadData 已经执行过，不用再次加载
-  Future<void>? _loadFuture;
-  final ValueNotifier<bool> _favoriteNotifier = ValueNotifier(false);
-
-  @override
-  void dispose() {
-    _favoriteNotifier.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final animeViewModelAsync = ref.watch(animeViewModelProvider);
-    return animeViewModelAsync.when(
+    // 数据层就绪（收藏缓存预热完成）后才渲染
+    final dataReadyAsync = ref.watch(dataReadyProvider);
+    return dataReadyAsync.when(
       error: (e, st) => Text(e.toString()),
       loading: () => const NotReady(),
-      data: (viewModel) {
-        animeViewModel = viewModel;
-        return buildScreen();
-      },
+      data: (_) => buildScreen(),
     );
   }
 
   Widget buildScreen() {
-    // 缓存 Future：窗口缩放 / rebuild 不得重新拉接口
-    _loadFuture ??= loadData();
-    return FutureBuilder<void>(
-      future: _loadFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
+    // 详情数据（family: animeId），controller 状态变化自动 rebuild
+    final detailAsync =
+        ref.watch(animeDetailControllerProvider(widget.animeId));
+    return detailAsync.when(
+      loading: () => const NotReady(),
+      error: (e, st) {
+        logMessage('Error: ${e.toString()}');
+        return Text(e.toString());
+      },
+      data: (detailState) {
+        if (detailState.animeDetails == null) {
           return const NotReady();
         }
-        if (snapshot.hasError) {
-          logMessage('Error: ${snapshot.error.toString()}');
-          return Text(snapshot.error.toString());
-        }
-        if (animeDetails == null) {
-          return const NotReady();
-        }
-        return buildDetailScreen();
+        return buildDetailScreen(detailState);
       },
     );
   }
 
-  Widget buildDetailScreen() {
-    final details = animeDetails!;
-    _favoriteNotifier.value = animeViewModel.isFavorite(widget.animeId);
+  Widget buildDetailScreen(AnimeDetailState detailState) {
+    final details = detailState.animeDetails!;
+    final trailerVideos = detailState.trailerVideos;
+    final characters = detailState.characters;
 
     return SafeArea(
       child: Scaffold(
@@ -111,23 +96,19 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
               SliverList(
                 delegate: SliverChildListDelegate([
                   // 顶部渐进色背景：图源 bannerImage（animeId 对应 AniList）
-                  DetailBanner(details: details, bannerImage: bannerImage),
+                  DetailBanner(
+                    details: details,
+                    bannerImage: detailState.bannerImage,
+                  ),
                   // 左完整 detail.image + 元信息；右章节/简介/标签
                   _buildPosterAndOverview(details),
-                  ValueListenableBuilder<bool>(
-                    valueListenable: _favoriteNotifier,
-                    builder: (BuildContext context, bool value, Widget? child) {
-                      return ButtonRow(
-                        favoriteSelected: _favoriteNotifier.value,
-                        onFavoriteSelected: () async {
-                          await animeViewModel.toggleFavorite(
-                            Anime(bangumiId: widget.animeId),
-                          );
-                          _favoriteNotifier.value = animeViewModel.isFavorite(
-                            widget.animeId,
-                          );
-                        },
-                      );
+                  ButtonRow(
+                    favoriteSelected: detailState.isFavorite,
+                    onFavoriteSelected: () {
+                      ref
+                          .read(animeDetailControllerProvider(widget.animeId)
+                              .notifier)
+                          .toggleFavorite();
                     },
                   ),
                   if (trailerVideos.isNotEmpty) ...[
@@ -198,17 +179,10 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
       onWatchTap: () => _openSourceSheet(details, preferredEpisode: null),
       // 点标签:(标签名称) 回调
       onTagTap: (genre){
-        // 切换到 Genre Tab
+        // 切换到 Genre Tab 并发起标签搜索（SearchState 请求，Genre 页消费）
         final container = ProviderScope.containerOf(context, listen: false);
-        container.read(currentNavIndexProvider.notifier).state = 1;
-        // 写入搜索 tag；再点同一个 tag 视为取消（单次赋值，GenreScreen 才能感知变化）
-        final notifier = container.read(searchTagProvider.notifier);
-        final tags = List<String>.from(notifier.state);
-        if(!tags.contains(genre.name)){
-            tags.add(genre.name);
-        }
-        // 必须赋一个新列表实例，GenreScreen 的 watch 才能感知变化
-        notifier.state = tags;
+        container.read(currentNavIndexProvider.notifier).goTo(1);
+        container.read(searchStateProvider.notifier).addTag(genre.name);
         // route to genres screen
         context.router.pop();
       },
@@ -258,7 +232,11 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
       children: [
         SizedBox(
           width: posterWidth,
-          child: DetailImage(details: details, width: posterWidth),
+          child: DetailImage(
+            details: details,
+            width: posterWidth,
+            heroTag: widget.heroTag,
+          ),
         ),
         addVerticalSpace(16),
         SizedBox(
@@ -276,32 +254,6 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
         ),
       ],
     );
-  }
-
-  Future<void> loadData() async {
-    animeDetails = await animeViewModel.getAnimeDetails(widget.animeId);
-
-    // 按 animeId 补充 bannerImage（AniList），与视频/角色并行加载
-    String? nameJa;
-    String? nameCn;
-    final anime = animeViewModel.findAnimeById(widget.animeId);
-    if (anime != null) {
-      nameJa = anime.titleJapanese;
-      nameCn = anime.title;
-    } else {
-      nameJa = animeDetails?.titleJapanese;
-      nameCn = animeDetails?.title;
-    }
-
-    final results = await Future.wait([
-      animeViewModel.getAnimeTrailers(widget.animeId),
-      animeViewModel.getAnimeCharacters(widget.animeId),
-      animeViewModel.getExtras(widget.animeId, nameJa, nameCn),
-    ]);
-    trailerVideos = results[0] as List<AnimeTrailer>;
-    characters = results[1] as List<AnimeCharacter>;
-    // 从 extras 中获取 bannerImage（可能为空）
-    bannerImage = (results[2] as AnimeExtras).bannerImage;
   }
 
   /// 打开视频源选择器
