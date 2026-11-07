@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lumberdash/lumberdash.dart';
 import 'package:movies/data/models/comic_source.dart';
 import 'package:movies/state/comic_source_controller.dart';
 import 'package:movies/ui/theme/theme.dart';
@@ -142,11 +143,16 @@ class _ComicSourceSheetState extends ConsumerState<ComicSourceSheet> {
     if (allSettled && !anyMatch) {
       return const _EmptyHint('无匹配图源');
     }
-    return ListView.builder(
-      controller: controller,
-      itemCount: state.rows.length,
-      itemBuilder: (context, index) =>
-          _buildSourceSection(state.rows[index], state),
+    // 包一层不透明 Material：ListTile 的水波纹要有 Material 承载
+    // （modal bottom sheet 透明背景 + 自绘 Container 会触发「ink splashes may be invisible」）
+    return Material(
+      color: searchBarBackground,
+      child: ListView.builder(
+        controller: controller,
+        itemCount: state.rows.length,
+        itemBuilder: (context, index) =>
+            _buildSourceSection(state.rows[index], state),
+      ),
     );
   }
 
@@ -286,8 +292,13 @@ class _ComicSourceSheetState extends ConsumerState<ComicSourceSheet> {
     } catch (e) {
       if (!mounted) return;
       Navigator.of(context).pop();
+      logError('[ComicSourceSheet]获取章节失败：$e');
+      // 210 = 图源 API 限频（拷贝漫画等），给用户可行动的话术
+      final msg = e.toString().contains('210')
+          ? '访问太频繁，请稍后再试'
+          : '获取章节失败：$e';
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('获取章节失败：$e')));
+          .showSnackBar(SnackBar(content: Text(msg)));
     }
   }
 

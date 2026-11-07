@@ -92,6 +92,25 @@ class JsEngineService {
     );
     _settingsDefaults[key] = (jsonDecode(raw as String) as Map)
         .cast<String, dynamic>();
+    // 调用规则的 init()
+    // copy_manga 等规则在里面初始化实例字段（author_path_word_dict 等），不调会炸
+    final hasInit =
+        runCode('ComicSource.sources.$key.init != null') as bool? ?? false;
+    if (hasInit) {
+      // fire-and-forget（init 可能是 async）；失败只记日志不阻塞装载
+      runCode('''
+        (() => {
+          try {
+            const p = ComicSource.sources.$key.init();
+            if (p && typeof p.catch === 'function') {
+              p.catch((e) => console.log('init() failed: ' + e));
+            }
+          } catch (e) {
+            console.log('init() failed: ' + e);
+          }
+        })()
+      ''');
+    }
     return key;
   }
 

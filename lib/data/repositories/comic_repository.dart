@@ -24,9 +24,20 @@ class ComicRepository {
 
   /// 章节列表（顺序即阅读顺序）
   Future<List<ComicChapter>> loadChapters(String sourceKey, String comicId) async {
-    final info = await sources[sourceKey]!.loadComicInfo(comicId);
-    final chapters = (info['chapters'] as Map?) ?? const {};
-    return [for (final e in chapters.entries) ComicChapter(epId: '${e.key}', title: '${e.value}')];
+    Future<List<ComicChapter>> fetch() async {
+      final info = await sources[sourceKey]!.loadComicInfo(comicId);
+      final chapters = (info['chapters'] as Map?) ?? const {};
+      return [for (final e in chapters.entries) ComicChapter(epId: '${e.key}', title: '${e.value}')];
+    }
+
+    try {
+      return await fetch();
+    } catch (e) {
+      // 拷贝漫画等源会 210 限频（loadInfo 无规则内重试）：退避 3 秒补一次
+      if (!e.toString().contains('210')) rethrow;
+      await Future.delayed(const Duration(seconds: 3));
+      return fetch();
+    }
   }
 
   /// 一页图（imageKey + 加载配置）
