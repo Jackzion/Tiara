@@ -713,3 +713,42 @@ final class JsEngineServiceProvider
 }
 
 String _$jsEngineServiceHash() => r'95c78dfbbe502955e2909c716172e99b9be39017';
+
+@ProviderFor(comicRepository)
+final comicRepositoryProvider = ComicRepositoryProvider._();
+
+final class ComicRepositoryProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<ComicRepository>,
+          ComicRepository,
+          FutureOr<ComicRepository>
+        >
+    with $FutureModifier<ComicRepository>, $FutureProvider<ComicRepository> {
+  ComicRepositoryProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'comicRepositoryProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$comicRepositoryHash();
+
+  @$internal
+  @override
+  $FutureProviderElement<ComicRepository> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<ComicRepository> create(Ref ref) {
+    return comicRepository(ref);
+  }
+}
+
+String _$comicRepositoryHash() => r'3cf73e22f6f01bfbf3795b2b5c2962ce7c1f3ead';

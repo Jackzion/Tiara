@@ -15,6 +15,7 @@ import 'package:movies/ui/screens/anime_detail/button_row.dart';
 import 'package:movies/ui/screens/anime_detail/detail_banner.dart';
 import 'package:movies/ui/screens/anime_detail/detail_image.dart';
 import 'package:movies/ui/screens/anime_detail/trailer.dart';
+import 'package:movies/ui/screens/comic_source_sheet/comic_source_sheet.dart';
 import 'package:movies/ui/screens/source_sheet/source_sheet.dart';
 import 'package:movies/ui/widgets/horiz_cast.dart';
 import 'package:movies/ui/widgets/not_ready.dart';
@@ -179,7 +180,9 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
       // 点章节:(1-based 集号) 回调
       onEpisodeTap: (ep) => _openSourceSheet(details, preferredEpisode: ep),
       // 点观看:(不带集号) 回调
-      onWatchTap: () => details.isBook ? null : _openSourceSheet(details, preferredEpisode: null),
+      onWatchTap: () => details.isBook
+          ? _openComicSourceSheet(details)
+          : _openSourceSheet(details, preferredEpisode: null),
       // 点标签:(标签名称) 回调
       onTagTap: (genre) {
         // 切换到 Genre Tab 并发起标签搜索（SearchState 请求，Genre 页消费）
@@ -295,6 +298,32 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
     // 参数由 page auto route 自动解析 ， dart run build_runner build --delete-conflicting-outputs
     context.router.push(
       VideoPageRoute(animeVideo: '', playContext: playContext),
+    );
+  }
+
+  /// 打开选图源面板（书籍）
+  Future<void> _openComicSourceSheet(AnimeDetails details) async {
+    // 关键词：优先中文标题，无则日文
+    final keyword = (details.title?.isNotEmpty ?? false)
+        ? details.title!
+        : (details.titleJapanese ?? '');
+    if (keyword.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('缺少可用的搜索关键词')));
+      return;
+    }
+    // 打开选图源面板 - showComicSourceSheet
+    final selection = await showComicSourceSheet(
+      context,
+      keyword: keyword,
+      animeId: details.bangumiId,
+      animeTitle: details.title ?? keyword,
+    );
+    if (selection == null || !mounted) return; // 用户取消
+    // context.router.push(ComicReaderRoute(...selection));
+    debugPrint('ComicSelection => $selection');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('已选：${selection.title} · ${selection.epTitle}')),
     );
   }
 }

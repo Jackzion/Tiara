@@ -100,7 +100,7 @@ class AnimeDetails {
       year: parseYear(date),
       genres: _parseGenres(json['tags'] as List<dynamic>?),
       subjectType: parseInt(json['type']),
-      vols: parseInt(json['vols']),
+      vols: parseInt(json['volumes']),
     );
   }
 

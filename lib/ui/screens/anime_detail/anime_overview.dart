@@ -66,18 +66,21 @@ class _AnimeOverviewState extends State<AnimeOverview>
     final genres = details.genres ?? <Genre>[];
     final synopsis = details.synopsis ?? '';
     final synopsisLines = _splitSynopsis(synopsis);
-    final episodes = details.episodes;
+    final episodes = details.isBook
+        ? details.chapterCount ?? 0
+        : details.episodes ?? 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (episodes != null && episodes > 0) ...[
-          _buildChapterHeader(),
+        _buildChapterHeader(),
+        // 数字章节按钮仅在数量已知时渲染
+        if (episodes > 0) ...[
           addVerticalSpace(12),
           _buildChapterButtons(episodes),
-          addVerticalSpace(16),
         ],
+        addVerticalSpace(16),
 
         const Divider(height: 1, thickness: 1, color: dividerLine),
         addVerticalSpace(18),
@@ -94,7 +97,11 @@ class _AnimeOverviewState extends State<AnimeOverview>
   }
 
   Widget _buildChapterHeader() {
-    final episodes = widget.details.episodes ?? 0;
+    final details = widget.details;
+    // 与 build 同口径：书籍取 chapterCount
+    final episodes = details.isBook
+        ? details.chapterCount ?? 0
+        : details.episodes ?? 0;
     final showToggle = episodes > 12;
 
     return Row(
@@ -118,7 +125,7 @@ class _AnimeOverviewState extends State<AnimeOverview>
           onTap: widget.onWatchTap,
           child: Text(
             widget.details.isBook ? '开始阅读 ›' : '开始观看 ›',
-            style: GoogleFonts.notoSansSc(fontSize: 15, color: widget.details.isBook ? textSoft : accentAmber),
+            style: GoogleFonts.notoSansSc(fontSize: 15, color: accentAmber),
           ),
         ),
       ],

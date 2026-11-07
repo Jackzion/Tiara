@@ -76,7 +76,7 @@ class Anime {
       episodes: parseInt(json['eps'] ?? json['total_episodes']),
       type: json['platform'] as String?,
       subjectType: parseInt(json['type']),
-      vols: parseInt(json['vols']),
+      vols: parseInt(json['volumes']),
     );
   }
 

@@ -1,7 +1,6 @@
 import 'package:movies/data/models/anime.dart';
 import 'package:movies/data/models/anime_character.dart';
 import 'package:movies/data/models/anime_details.dart';
-import 'package:movies/data/models/anime_extras.dart';
 import 'package:movies/data/models/anime_trailer.dart';
 import 'package:movies/providers.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -67,19 +66,19 @@ class AnimeDetailController extends _$AnimeDetailController {
 
     final isBook = animeDetails?.isBook ?? false;
 
-    final results = await Future.wait([
-      // 非书籍才加载预告
-      if (!isBook) animeRepository.getAnimeTrailers(animeId),
-      animeRepository.getAnimeCharacters(animeId),
-      animeRepository.getExtras(animeId, nameJa, nameCn),
-    ]);
+    // 并行加载；书籍跳过 PV（AniList 是动画向，必空）。
+    final trailersFuture = isBook
+        ? Future.value(const <AnimeTrailer>[])
+        : animeRepository.getAnimeTrailers(animeId);
+    final charactersFuture = animeRepository.getAnimeCharacters(animeId);
+    final extrasFuture = animeRepository.getExtras(animeId, nameJa, nameCn);
 
     return AnimeDetailState(
       animeDetails: animeDetails,
-      trailerVideos: results[0] as List<AnimeTrailer>,
-      characters: results[1] as List<AnimeCharacter>,
+      trailerVideos: await trailersFuture,
+      characters: await charactersFuture,
       // 从 extras 中获取 bannerImage（可能为空）
-      bannerImage: (results[2] as AnimeExtras).bannerImage,
+      bannerImage: (await extrasFuture).bannerImage,
       isFavorite: favoriteRepository.isFavorite(animeId),
     );
   }

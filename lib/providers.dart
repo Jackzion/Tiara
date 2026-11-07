@@ -1,12 +1,19 @@
+import 'dart:io';
+
+import 'package:lumberdash/lumberdash.dart';
 import 'package:movies/data/api/anilist_api_service.dart';
 import 'package:movies/data/api/bangumi_api_service.dart';
 import 'package:movies/data/database/drift/drift_database.dart';
 import 'package:movies/data/database/models/database_interface.dart';
+import 'package:movies/data/models/comic_source.dart';
 import 'package:movies/data/repositories/anime_repository.dart';
+import 'package:movies/data/repositories/comic_repository.dart';
 import 'package:movies/data/repositories/favorite_repository.dart';
 import 'package:movies/data/repositories/rules_repository.dart';
 import 'package:movies/network/rule_engine.dart';
 import 'package:movies/router/app_routes.dart';
+import 'package:movies/services/comic_source/comic_rule_catalog.dart';
+import 'package:movies/services/js/comic_source_parser.dart';
 import 'package:movies/services/js/host_convert.dart';
 import 'package:movies/services/js/host_network.dart';
 import 'package:movies/services/js/js_engine_service.dart';
@@ -107,3 +114,30 @@ JsEngineService jsEngineService(Ref ref) => JsEngineService(
   hostNetwork: ref.read(hostNetworkProvider),
   hostConvert: ref.read(hostConvertProvider),
 );
+
+
+@Riverpod(keepAlive: true)
+Future<ComicRepository> comicRepository(Ref ref) async {
+  final engine = ref.read(jsEngineServiceProvider);
+  await engine.ensureInit();
+  final dir = await RuleCatalogService().ruleDir();
+  final sources = <String, ComicSource>{};
+  /// 遍历已经下载的所有规则 .js 文件
+  await for (final entity in dir.list()) {
+    if (entity is! File || !entity.path.endsWith('.js')) {
+      continue;
+    }
+    try {
+      // init ComicSource by js file
+      final source = await ComicSourceParser(engine).createAndParse(
+        await entity.readAsString(),
+        entity.uri.pathSegments.last,
+      );
+      sources[source.key] = source;
+    } catch (e) {
+      // 单条失败不阻塞其它源
+      logError('装载规则失败 ${entity.path}: $e');
+    }
+  }
+  return ComicRepository(sources);
+}
