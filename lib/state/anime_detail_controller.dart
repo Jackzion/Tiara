@@ -65,8 +65,11 @@ class AnimeDetailController extends _$AnimeDetailController {
       nameCn = animeDetails?.title;
     }
 
+    final isBook = animeDetails?.isBook ?? false;
+
     final results = await Future.wait([
-      animeRepository.getAnimeTrailers(animeId),
+      // 非书籍才加载预告
+      if (!isBook) animeRepository.getAnimeTrailers(animeId),
       animeRepository.getAnimeCharacters(animeId),
       animeRepository.getExtras(animeId, nameJa, nameCn),
     ]);

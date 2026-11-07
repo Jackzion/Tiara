@@ -117,8 +117,8 @@ class _AnimeOverviewState extends State<AnimeOverview>
         GestureDetector(
           onTap: widget.onWatchTap,
           child: Text(
-            '开始观看 ›',
-            style: GoogleFonts.notoSansSc(fontSize: 15, color: accentAmber),
+            widget.details.isBook ? '开始阅读 ›' : '开始观看 ›',
+            style: GoogleFonts.notoSansSc(fontSize: 15, color: widget.details.isBook ? textSoft : accentAmber),
           ),
         ),
       ],

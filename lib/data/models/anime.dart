@@ -36,6 +36,12 @@ class Anime {
   /// 宽幅横幅图（AniList 按需加载，可能为空）
   String? bannerImage;
 
+  /// 条目类型（Bangumi subject type：1=书籍 2=动画 3=游戏 4=音乐 6=三次元）
+  final int? subjectType;
+
+  /// 卷数（书籍才有；动画为空）
+  final int? vols;
+
   Anime({
     required this.bangumiId,
     this.title,
@@ -48,6 +54,8 @@ class Anime {
     this.episodes,
     this.type,
     this.bannerImage,
+    this.subjectType,
+    this.vols,
   });
 
   /// 从 Bangumi 条目（搜索结果/日历项）构造
@@ -62,13 +70,13 @@ class Anime {
       titleJapanese: name,
       image: images?['large'] as String? ?? images?['medium'] as String? ?? '',
       synopsis: json['summary'] as String?,
-      aired: parseDate(
-        json['date'] as String? ?? json['air_date'] as String?,
-      ),
+      aired: parseDate(json['date'] as String? ?? json['air_date'] as String?),
       score: parseDouble(rating?['score']),
       rank: parseInt(json['rank'] ?? rating?['rank']),
       episodes: parseInt(json['eps'] ?? json['total_episodes']),
       type: json['platform'] as String?,
+      subjectType: parseInt(json['type']),
+      vols: parseInt(json['vols']),
     );
   }
 

@@ -40,6 +40,27 @@ class AnimeDetails {
   /// 标签（取自 Bangumi 标签，用于类型展示）
   final List<Genre>? genres;
 
+  /// 条目类型（1=书籍 2=动画 3=游戏 4=音乐 6=三次元）
+  final int? subjectType;
+
+  /// 卷数（书籍才有；动画为空）
+  final int? vols;
+
+  /// 是否书籍条目
+  bool get isBook => subjectType == 1;
+
+  /// 章节规模展示文案：动画=「话数」，书籍=「卷数」（无 vols 回退 eps）
+  String? get chapterCountLabel {
+    if (isBook) {
+      final n = vols ?? episodes;
+      return n == null ? null : '卷数';
+    }
+    return episodes == null ? null : '话数';
+  }
+
+  /// 章节规模数值（与 label 配对）
+  int? get chapterCount => isBook ? (vols ?? episodes) : episodes;
+
   const AnimeDetails({
     required this.bangumiId,
     this.title,
@@ -53,6 +74,8 @@ class AnimeDetails {
     this.synopsis,
     this.year,
     this.genres,
+    this.subjectType,
+    this.vols,
   });
 
   /// 从 Bangumi 条目详情构造
@@ -76,6 +99,8 @@ class AnimeDetails {
       synopsis: json['summary'] as String?,
       year: parseYear(date),
       genres: _parseGenres(json['tags'] as List<dynamic>?),
+      subjectType: parseInt(json['type']),
+      vols: parseInt(json['vols']),
     );
   }
 

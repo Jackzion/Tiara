@@ -80,9 +80,30 @@ class AnimeRepository {
       return;
     }
     const tagNames = [
-      '科幻', '奇幻', '恋爱', '百合', '治愈', '悬疑', '推理', '机战',
-      '校园', '音乐', '日常', '搞笑', '动作', '冒险', '魔法', '青春',
-      '剧情', '恐怖', '历史', '运动', '美食', '萌', '后宫', '异世界',
+      '科幻',
+      '奇幻',
+      '恋爱',
+      '百合',
+      '治愈',
+      '悬疑',
+      '推理',
+      '机战',
+      '校园',
+      '音乐',
+      '日常',
+      '搞笑',
+      '动作',
+      '冒险',
+      '魔法',
+      '青春',
+      '剧情',
+      '恐怖',
+      '历史',
+      '运动',
+      '美食',
+      '萌',
+      '后宫',
+      '异世界',
     ];
     animeGenres = [
       for (var i = 0; i < tagNames.length; i++)
@@ -122,8 +143,10 @@ class AnimeRepository {
         offset: (page - 1) * pageSize,
       );
       if (response.statusCode == 200) {
-        return _registerAll(parseSearchResults(response.data)
-          ..sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0)));
+        return _registerAll(
+          parseSearchResults(response.data)
+            ..sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0)),
+        );
       }
       logError('Failed to load popular anime: ${response.statusCode}');
       return null;
@@ -142,8 +165,10 @@ class AnimeRepository {
         offset: (page - 1) * pageSize,
       );
       if (response.statusCode == 200) {
-        return _registerAll(parseSearchResults(response.data)
-          ..sort((a, b) => (a.rank ?? 9999).compareTo(b.rank ?? 9999)));
+        return _registerAll(
+          parseSearchResults(response.data)
+            ..sort((a, b) => (a.rank ?? 9999).compareTo(b.rank ?? 9999)),
+        );
       }
       logError('Failed to load top rated anime: ${response.statusCode}');
       return null;
@@ -187,14 +212,16 @@ class AnimeRepository {
   Future<List<Anime>?> searchAnimes(
     String query,
     int page,
-    List<String>? tags,
-  ) async {
+    List<String>? tags, {
+    List<int> types = const [2],
+  }) async {
     try {
       final response = await bangumiApiService.searchSubjects(
         keyword: query,
         limit: 10,
         tags: tags,
         offset: (page - 1) * 10,
+        types: types,
       );
       if (response.statusCode == 200) {
         return _registerAll(parseSearchResults(response.data));
@@ -223,8 +250,11 @@ class AnimeRepository {
   /// 简介在放送日历数据为空时从条目详情补充
   Future<void> ensureExtras(Anime anime) async {
     if (anime.bannerImage == null) {
-      final extras =
-          await getExtras(anime.bangumiId, anime.titleJapanese, anime.title);
+      final extras = await getExtras(
+        anime.bangumiId,
+        anime.titleJapanese,
+        anime.title,
+      );
       anime.bannerImage = extras.bannerImage;
     }
     if (anime.synopsis == null || anime.synopsis!.isEmpty) {

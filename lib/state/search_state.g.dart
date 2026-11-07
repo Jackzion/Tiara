@@ -44,7 +44,7 @@ final class SearchStateProvider
   }
 }
 
-String _$searchStateHash() => r'1ae5524dd3026e2e27655e8051a91237316ee6e2';
+String _$searchStateHash() => r'0b35c068038b29c802ab3b927297de6d18269dff';
 
 /// 跨页搜索请求通道：谁搜谁写，Genre 页是唯一消费方
 

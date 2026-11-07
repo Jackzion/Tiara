@@ -97,6 +97,21 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
                       );
                       FocusScope.of(context).unfocus();
                     }),
+                    SegmentedButton<SubjectTypeFilter>(
+                      segments: [
+                        for (final f
+                            in SubjectTypeFilter.values) // ALL / Book / Anime
+                          ButtonSegment(value: f, label: Text(f.label)),
+                      ],
+                      selected: {pageState.typeFilter},
+                      onSelectionChanged: (sel) {
+                        _finishSearch(
+                          ref
+                              .read(genreControllerProvider.notifier)
+                              .setTypeFilter(sel.first),
+                        );
+                      },
+                    ),
                   ]),
                 ),
                 ValueListenableBuilder<bool>(
@@ -138,10 +153,9 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
                 VerticalAnimeList(
                   animes: pageState.currentAnimeList,
                   onAnimeTap: (animeId, heroTag) {
-                    context.router.push(AnimeDetailRoute(
-                      animeId: animeId,
-                      heroTag: heroTag,
-                    ));
+                    context.router.push(
+                      AnimeDetailRoute(animeId: animeId, heroTag: heroTag),
+                    );
                   },
                 ),
               ],

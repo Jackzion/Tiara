@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -105,6 +106,10 @@ class RuleCatalogService {
     // 加载 manifest 已同步的维护清单
     final manifest = await _loadManifest(dir);
     final downloaded = <String>[];
+    debugPrint(
+      '[RuleCatalog] 开始同步，清单 ${entries.length} 条，'
+      'onlyKeys: $onlyKeys，本地 manifest: $manifest',
+    );
 
     for (final entry in entries) {
       // 若已指定 onlyKey 则只下载指定源
@@ -120,6 +125,10 @@ class RuleCatalogService {
       if (exists &&
           localVersion != null &&
           _cmpVer(localVersion, entry.version) >= 0) {
+        debugPrint(
+          '[RuleCatalog] 跳过 ${entry.key}：'
+          '本地 $localVersion >= 清单 ${entry.version}，文件已存在',
+        );
         continue;
       }
       // get the new commic source from venera server
@@ -147,10 +156,11 @@ class RuleCatalogService {
         };
         // update downloaded
         downloaded.add(entry.key);
+        debugPrint('[RuleCatalog] 下载成功 ${entry.key}');
       } catch (e) {
         // 单条失败不阻塞启动；规则缺失时 UI 空态兜底（Phase 2d）
         // ignore: avoid_print
-        print('[RuleCatalog] 下载失败 ${entry.key}: $e');
+        debugPrint('[RuleCatalog] 下载失败 ${entry.key}: $e');
       }
     }
 

@@ -51,8 +51,9 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
 
   Widget buildScreen() {
     // 详情数据（family: animeId），controller 状态变化自动 rebuild
-    final detailAsync =
-        ref.watch(animeDetailControllerProvider(widget.animeId));
+    final detailAsync = ref.watch(
+      animeDetailControllerProvider(widget.animeId),
+    );
     return detailAsync.when(
       loading: () => const NotReady(),
       error: (e, st) {
@@ -106,8 +107,10 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
                     favoriteSelected: detailState.isFavorite,
                     onFavoriteSelected: () {
                       ref
-                          .read(animeDetailControllerProvider(widget.animeId)
-                              .notifier)
+                          .read(
+                            animeDetailControllerProvider(widget.animeId)
+                                .notifier,
+                          )
                           .toggleFavorite();
                     },
                   ),
@@ -123,11 +126,11 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
                       videos: trailerVideos,
                       onVideoTap: (video) {
                         final playContext = PlayContext(
-                            animeId: widget.animeId,
-                            title: details.title ?? '',
-                            detailUrl: video.videoUrl,
-                            roads: [],
-                            preferredEpisode: 1,
+                          animeId: widget.animeId,
+                          title: details.title ?? '',
+                          detailUrl: video.videoUrl,
+                          roads: [],
+                          preferredEpisode: 1,
                         );
                         // 预告片：rule 为空 → VideoPage 走 youtube_explode 取流
                         context.router.push(
@@ -176,9 +179,9 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
       // 点章节:(1-based 集号) 回调
       onEpisodeTap: (ep) => _openSourceSheet(details, preferredEpisode: ep),
       // 点观看:(不带集号) 回调
-      onWatchTap: () => _openSourceSheet(details, preferredEpisode: null),
+      onWatchTap: () => details.isBook ? null : _openSourceSheet(details, preferredEpisode: null),
       // 点标签:(标签名称) 回调
-      onTagTap: (genre){
+      onTagTap: (genre) {
         // 切换到 Genre Tab 并发起标签搜索（SearchState 请求，Genre 页消费）
         final container = ProviderScope.containerOf(context, listen: false);
         container.read(currentNavIndexProvider.notifier).goTo(1);
@@ -247,7 +250,10 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
               _MetaLine(label: '中文名', value: details.displayTitle),
               if (details.episodes != null) ...[
                 addVerticalSpace(8),
-                _MetaLine(label: '话数', value: '${details.episodes}'),
+                _MetaLine(
+                  label: details.chapterCountLabel!,
+                  value: '${details.chapterCount!}',
+                ),
               ],
             ],
           ),

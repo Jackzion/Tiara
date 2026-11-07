@@ -42,6 +42,7 @@ class BangumiApiService {
   /// [rankFilter] / [ratingFilter] 为 Bangumi 过滤表达式，如 ['>= 1', '<= 300']
   /// [sort] 支持 match / heat / rank
   Future<Response> searchSubjects({
+    List<int> types = const [2],
     String keyword = '',
     List<String>? tags,
     List<String>? rankFilter,
@@ -52,7 +53,7 @@ class BangumiApiService {
   }) async {
     await throttle.wait();
     final filter = <String, dynamic>{
-      'type': [2],
+      'type': types,
     };
     if (tags != null && tags.isNotEmpty) {
       // Bangumi 过滤字段为单数 tag；复数 tags 会被忽略
