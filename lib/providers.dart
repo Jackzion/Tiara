@@ -7,6 +7,9 @@ import 'package:movies/data/repositories/favorite_repository.dart';
 import 'package:movies/data/repositories/rules_repository.dart';
 import 'package:movies/network/rule_engine.dart';
 import 'package:movies/router/app_routes.dart';
+import 'package:movies/services/js/host_convert.dart';
+import 'package:movies/services/js/host_network.dart';
+import 'package:movies/services/js/js_engine_service.dart';
 import 'package:movies/services/video_source/webview_video_source_service.dart';
 import 'package:movies/utils/prefs.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -92,3 +95,15 @@ Future<RulesRepository> rulesRepository(Ref ref) async {
 /// 规则引擎（无状态；Dio 复用）
 @Riverpod(keepAlive: true)
 RuleEngine ruleEngine(Ref ref) => RuleEngine();
+
+@Riverpod(keepAlive: true)
+HostNetwork hostNetwork(Ref ref) => HostNetwork();
+
+@Riverpod(keepAlive: true)
+HostConvert hostConvert(Ref ref) => HostConvert();
+
+@Riverpod(keepAlive: true)
+JsEngineService jsEngineService(Ref ref) => JsEngineService(
+  hostNetwork: ref.read(hostNetworkProvider),
+  hostConvert: ref.read(hostConvertProvider),
+);

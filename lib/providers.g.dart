@@ -589,3 +589,127 @@ final class RuleEngineProvider
 }
 
 String _$ruleEngineHash() => r'64f75db1d7422b056139686298575f105cfa0985';
+
+@ProviderFor(hostNetwork)
+final hostNetworkProvider = HostNetworkProvider._();
+
+final class HostNetworkProvider
+    extends $FunctionalProvider<HostNetwork, HostNetwork, HostNetwork>
+    with $Provider<HostNetwork> {
+  HostNetworkProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'hostNetworkProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$hostNetworkHash();
+
+  @$internal
+  @override
+  $ProviderElement<HostNetwork> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  HostNetwork create(Ref ref) {
+    return hostNetwork(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(HostNetwork value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<HostNetwork>(value),
+    );
+  }
+}
+
+String _$hostNetworkHash() => r'd1c00335f68b30fbc18c0f29080625f12a0df79b';
+
+@ProviderFor(hostConvert)
+final hostConvertProvider = HostConvertProvider._();
+
+final class HostConvertProvider
+    extends $FunctionalProvider<HostConvert, HostConvert, HostConvert>
+    with $Provider<HostConvert> {
+  HostConvertProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'hostConvertProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$hostConvertHash();
+
+  @$internal
+  @override
+  $ProviderElement<HostConvert> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  HostConvert create(Ref ref) {
+    return hostConvert(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(HostConvert value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<HostConvert>(value),
+    );
+  }
+}
+
+String _$hostConvertHash() => r'cf1ca56b0f04347b90a4f9caddfd3ba535541be3';
+
+@ProviderFor(jsEngineService)
+final jsEngineServiceProvider = JsEngineServiceProvider._();
+
+final class JsEngineServiceProvider
+    extends
+        $FunctionalProvider<JsEngineService, JsEngineService, JsEngineService>
+    with $Provider<JsEngineService> {
+  JsEngineServiceProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'jsEngineServiceProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$jsEngineServiceHash();
+
+  @$internal
+  @override
+  $ProviderElement<JsEngineService> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  JsEngineService create(Ref ref) {
+    return jsEngineService(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(JsEngineService value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<JsEngineService>(value),
+    );
+  }
+}
+
+String _$jsEngineServiceHash() => r'95c78dfbbe502955e2909c716172e99b9be39017';

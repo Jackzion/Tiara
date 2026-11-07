@@ -60,7 +60,7 @@ final class AnimeDetailControllerProvider
 }
 
 String _$animeDetailControllerHash() =>
-    r'8faad49af9bd142287dd0ba24ef876cc52dcacb0';
+    r'8b082e3c8f371bacb7ef6a3a667033f52b3b1cc4';
 
 /// 动漫详情页控制器（family: animeId，autoDispose 随页面销毁）
 /// 只要还有任何一处 `ref.watch` / `ref.listen` 在监听这个 Provider → 不会销毁。
