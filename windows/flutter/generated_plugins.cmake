@@ -4,6 +4,7 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   desktop_window
+  flutter_qjs
   media_kit_libs_windows_video
   media_kit_video
   volume_controller
