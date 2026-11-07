@@ -9,21 +9,27 @@ part of 'search_state.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// 跨页搜索请求通道：谁搜谁写，Genre 页是唯一消费方
+/// keepAlive：提交方（全局搜索/详情页）写入时消费页往往还没 build，
+/// autoDispose 会把请求当垃圾回收，Genre 页 watch 到的是空 seq
 
 @ProviderFor(SearchState)
 final searchStateProvider = SearchStateProvider._();
 
 /// 跨页搜索请求通道：谁搜谁写，Genre 页是唯一消费方
+/// keepAlive：提交方（全局搜索/详情页）写入时消费页往往还没 build，
+/// autoDispose 会把请求当垃圾回收，Genre 页 watch 到的是空 seq
 final class SearchStateProvider
     extends $NotifierProvider<SearchState, SearchRequest> {
   /// 跨页搜索请求通道：谁搜谁写，Genre 页是唯一消费方
+  /// keepAlive：提交方（全局搜索/详情页）写入时消费页往往还没 build，
+  /// autoDispose 会把请求当垃圾回收，Genre 页 watch 到的是空 seq
   SearchStateProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
         name: r'searchStateProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -44,9 +50,11 @@ final class SearchStateProvider
   }
 }
 
-String _$searchStateHash() => r'0b35c068038b29c802ab3b927297de6d18269dff';
+String _$searchStateHash() => r'65d0a1bba2e536b061ec772771a3b7c6630bc4f9';
 
 /// 跨页搜索请求通道：谁搜谁写，Genre 页是唯一消费方
+/// keepAlive：提交方（全局搜索/详情页）写入时消费页往往还没 build，
+/// autoDispose 会把请求当垃圾回收，Genre 页 watch 到的是空 seq
 
 abstract class _$SearchState extends $Notifier<SearchRequest> {
   SearchRequest build();

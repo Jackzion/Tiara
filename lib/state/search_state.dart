@@ -20,7 +20,9 @@ class SearchRequest {
 }
 
 /// 跨页搜索请求通道：谁搜谁写，Genre 页是唯一消费方
-@riverpod
+/// keepAlive：提交方（全局搜索/详情页）写入时消费页往往还没 build，
+/// autoDispose 会把请求当垃圾回收，Genre 页 watch 到的是空 seq
+@Riverpod(keepAlive: true)
 class SearchState extends _$SearchState {
   @override
   SearchRequest build() => const SearchRequest();
