@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:movies/data/models/comic_source.dart';
 import 'package:movies/services/js/js_engine_service.dart';
 
+/// 解析 js engine 结果为 Commic 相关实体
 class ComicSourceParser {
   ComicSourceParser(this.engine);
   final JsEngineService engine;

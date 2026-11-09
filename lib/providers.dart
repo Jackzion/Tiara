@@ -13,6 +13,7 @@ import 'package:movies/data/repositories/rules_repository.dart';
 import 'package:movies/network/rule_engine.dart';
 import 'package:movies/router/app_routes.dart';
 import 'package:movies/services/comic_source/comic_rule_catalog.dart';
+import 'package:movies/services/commic/commic_image_loader.dart';
 import 'package:movies/services/js/comic_source_parser.dart';
 import 'package:movies/services/js/host_convert.dart';
 import 'package:movies/services/js/host_network.dart';
@@ -141,3 +142,6 @@ Future<ComicRepository> comicRepository(Ref ref) async {
   }
   return ComicRepository(sources);
 }
+
+@Riverpod(keepAlive: true)
+ComicImageLoader comicImageLoader(Ref ref) => ComicImageLoader();
