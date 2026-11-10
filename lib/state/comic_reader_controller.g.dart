@@ -54,7 +54,7 @@ final class ComicReaderControllerProvider
 }
 
 String _$comicReaderControllerHash() =>
-    r'a8626448251ed62917f82e905eed88acd5a47111';
+    r'e93ac072e09fc4f858e6c142ad3b75fc2c0ff089';
 
 /// 漫画阅读器控制器（family: sourceKey/comicId/epId，随页面销毁）
 

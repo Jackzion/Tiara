@@ -23,7 +23,6 @@ class AppRouter extends RootStackRouter {
         AutoRoute(path: 'home', page: HomeRoute.page),
         AutoRoute(path: 'Genre', page: GenreRoute.page),
         AutoRoute(path: 'favorites', page: FavoriteRoute.page),
-        AutoRoute(page: ComicReaderRoute.page),
       ],
     ),
     CustomRoute(
@@ -31,6 +30,15 @@ class AppRouter extends RootStackRouter {
       page: AnimeDetailRoute.page,
       maintainState: false,
       transitionsBuilder: TransitionsBuilders.slideBottom,
+      duration: const Duration(milliseconds: 500),
+    ),
+    // 漫画阅读页（根级推入，同详情/视频；勿挂进 MainRoute.children——
+    // MainScreen 无嵌套 AutoRouter 出口，子路由 push 会静默无效）
+    CustomRoute(
+      path: '/comic-reader',
+      page: ComicReaderRoute.page,
+      maintainState: false,
+      transitionsBuilder: TransitionsBuilders.slideLeftWithFade,
       duration: const Duration(milliseconds: 500),
     ),
     // 视频播放页面路由
