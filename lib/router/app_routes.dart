@@ -32,8 +32,6 @@ class AppRouter extends RootStackRouter {
       transitionsBuilder: TransitionsBuilders.slideBottom,
       duration: const Duration(milliseconds: 500),
     ),
-    // 漫画阅读页（根级推入，同详情/视频；勿挂进 MainRoute.children——
-    // MainScreen 无嵌套 AutoRouter 出口，子路由 push 会静默无效）
     CustomRoute(
       path: '/comic-reader',
       page: ComicReaderRoute.page,
