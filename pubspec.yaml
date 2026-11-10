@@ -134,6 +134,7 @@ flutter:
   assets:
   - assets/index.json
   - assets/init.js
+  - assets/error_network.jpg
 
   # To add assets to your application, add an assets section, like this:
   # assets:

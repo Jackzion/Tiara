@@ -52,6 +52,11 @@ class AnimeDetailController extends _$AnimeDetailController {
 
     final animeDetails = await animeRepository.getAnimeDetails(animeId);
 
+    // 详情加载失败（repository 吞掉网络异常返回 null）→ 必须抛出，
+    if (animeDetails == null) {
+      throw Exception('加载动漫详情失败（animeId: $animeId），请检查网络后重试');
+    }
+
     // 按 animeId 补充 bannerImage（AniList），与视频/角色并行加载
     String? nameJa;
     String? nameCn;

@@ -18,6 +18,7 @@ import 'package:movies/ui/screens/anime_detail/trailer.dart';
 import 'package:movies/ui/screens/comic_source_sheet/comic_source_sheet.dart';
 import 'package:movies/ui/screens/source_sheet/source_sheet.dart';
 import 'package:movies/ui/widgets/horiz_cast.dart';
+import 'package:movies/ui/widgets/net_error_view.dart';
 import 'package:movies/ui/widgets/not_ready.dart';
 import 'package:movies/utils/utils.dart';
 import 'package:movies/ui/theme/theme.dart';
@@ -59,7 +60,12 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
       loading: () => const NotReady(),
       error: (e, st) {
         logMessage('Error: ${e.toString()}');
-        return Text(e.toString());
+        return NetErrorView(
+          message: '动漫详情加载失败，请检查网络后重试',
+          onRetry: () =>
+              ref.invalidate(animeDetailControllerProvider(widget.animeId)),
+          onBack: () => ref.read(appRouterProvider).maybePop(),
+        );
       },
       data: (detailState) {
         if (detailState.animeDetails == null) {
@@ -320,11 +326,6 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
       animeTitle: details.title ?? keyword,
     );
     if (selection == null || !mounted) return; // 用户取消
-    // context.router.push(ComicReaderRoute(...selection));
-    debugPrint('ComicSelection => $selection');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('已选：${selection.title} · ${selection.epTitle}')),
-    );
     context.router.push(
       ComicReaderRoute(
         sourceKey: selection.sourceKey,
