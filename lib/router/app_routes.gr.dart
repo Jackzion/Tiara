@@ -67,6 +67,97 @@ class AnimeDetailRouteArgs {
 }
 
 /// generated route for
+/// [ComicReader]
+class ComicReaderRoute extends PageRouteInfo<ComicReaderRouteArgs> {
+  ComicReaderRoute({
+    required String sourceKey,
+    required String comicId,
+    required String epId,
+    required String title,
+    String epTitle = '',
+    Key? key,
+    List<PageRouteInfo>? children,
+  }) : super(
+         ComicReaderRoute.name,
+         args: ComicReaderRouteArgs(
+           sourceKey: sourceKey,
+           comicId: comicId,
+           epId: epId,
+           title: title,
+           epTitle: epTitle,
+           key: key,
+         ),
+         initialChildren: children,
+       );
+
+  static const String name = 'ComicReaderRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      final args = data.argsAs<ComicReaderRouteArgs>();
+      return ComicReader(
+        sourceKey: args.sourceKey,
+        comicId: args.comicId,
+        epId: args.epId,
+        title: args.title,
+        epTitle: args.epTitle,
+        key: args.key,
+      );
+    },
+  );
+}
+
+class ComicReaderRouteArgs {
+  const ComicReaderRouteArgs({
+    required this.sourceKey,
+    required this.comicId,
+    required this.epId,
+    required this.title,
+    this.epTitle = '',
+    this.key,
+  });
+
+  final String sourceKey;
+
+  final String comicId;
+
+  final String epId;
+
+  final String title;
+
+  final String epTitle;
+
+  final Key? key;
+
+  @override
+  String toString() {
+    return 'ComicReaderRouteArgs{sourceKey: $sourceKey, comicId: $comicId, epId: $epId, title: $title, epTitle: $epTitle, key: $key}';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! ComicReaderRouteArgs) return false;
+    return sourceKey == other.sourceKey &&
+        comicId == other.comicId &&
+        epId == other.epId &&
+        title == other.title &&
+        epTitle == other.epTitle &&
+        key == other.key;
+  }
+
+  @override
+  int get hashCode =>
+      sourceKey.hashCode ^
+      comicId.hashCode ^
+      epId.hashCode ^
+      title.hashCode ^
+      epTitle.hashCode ^
+      key.hashCode;
+}
+
+/// generated route for
 /// [FavoriteScreen]
 class FavoriteRoute extends PageRouteInfo<void> {
   const FavoriteRoute({List<PageRouteInfo>? children})

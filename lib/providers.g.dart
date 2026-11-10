@@ -752,3 +752,49 @@ final class ComicRepositoryProvider
 }
 
 String _$comicRepositoryHash() => r'3cf73e22f6f01bfbf3795b2b5c2962ce7c1f3ead';
+
+@ProviderFor(comicImageLoader)
+final comicImageLoaderProvider = ComicImageLoaderProvider._();
+
+final class ComicImageLoaderProvider
+    extends
+        $FunctionalProvider<
+          ComicImageLoader,
+          ComicImageLoader,
+          ComicImageLoader
+        >
+    with $Provider<ComicImageLoader> {
+  ComicImageLoaderProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'comicImageLoaderProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$comicImageLoaderHash();
+
+  @$internal
+  @override
+  $ProviderElement<ComicImageLoader> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  ComicImageLoader create(Ref ref) {
+    return comicImageLoader(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(ComicImageLoader value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<ComicImageLoader>(value),
+    );
+  }
+}
+
+String _$comicImageLoaderHash() => r'871871eeeda4bb204449a5660011b00d85273006';

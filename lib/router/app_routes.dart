@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:movies/data/models/play_context.dart';
 import 'package:movies/ui/main_screen.dart';
+import 'package:movies/ui/screens/comic_reader/comic_reader.dart';
 import 'package:movies/ui/screens/genres/genre_screen.dart';
 import 'package:movies/ui/screens/home/home_screen.dart';
 import 'package:movies/ui/screens/favorites/favorite_screen.dart';
@@ -22,6 +23,7 @@ class AppRouter extends RootStackRouter {
         AutoRoute(path: 'home', page: HomeRoute.page),
         AutoRoute(path: 'Genre', page: GenreRoute.page),
         AutoRoute(path: 'favorites', page: FavoriteRoute.page),
+        AutoRoute(page: ComicReaderRoute.page),
       ],
     ),
     CustomRoute(

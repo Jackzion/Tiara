@@ -325,6 +325,15 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('已选：${selection.title} · ${selection.epTitle}')),
     );
+    context.router.push(
+      ComicReaderRoute(
+        sourceKey: selection.sourceKey,
+        comicId: selection.comicId,
+        epId: selection.epId,
+        title: selection.title,
+        epTitle: selection.epTitle,
+      ),
+    );
   }
 }
 
