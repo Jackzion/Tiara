@@ -61,3 +61,4 @@ app.*.map.json
 /windows/runner/resources/app_icon.ico
 /web/favicon.png
 /web/icons/Icon-*.png
+.vscode
