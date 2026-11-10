@@ -13,7 +13,7 @@ import 'package:path_provider/path_provider.dart';
 class ComicImageException implements Exception {
   final String message;
   final String imageKey;
-  ComicImageException(this.message, this.imageKey);
+  ComicImageException(this.imageKey, this.message);
   @override
   String toString() => 'ComicImageException($imageKey): $message';
 }
@@ -117,9 +117,11 @@ class ComicImageLoader {
     );
     return _inflight.putIfAbsent(
       key,
-      () =>
-          _withPermit(() => _ensure(key, page))
-              .whenComplete(() => _inflight.remove(key)),
+      () => _withPermit(() => _ensure(key, page)).whenComplete(() {
+        // 注意：必须用块语句。`() => _inflight.remove(key)` 会把移除的
+        // future（即本 future 自己）返回给 whenComplete，造成自引用死锁。
+        _inflight.remove(key);
+      }),
     );
   }
 

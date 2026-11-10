@@ -96,7 +96,7 @@ class ComicReaderController extends _$ComicReaderController {
   Future<void> _touch(int index) async {
     if (!ref.mounted) return;
     final current = state.value;
-    if (current == null || index < 0 || index > current.pages.length) return;
+    if (current == null || index < 0 || index >= current.pages.length) return;
 
     final loader = ref.read(comicImageLoaderProvider);
     try {
