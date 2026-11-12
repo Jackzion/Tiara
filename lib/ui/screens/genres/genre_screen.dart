@@ -1,21 +1,20 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:movies/data/models/anime.dart';
 import 'package:movies/providers.dart';
 import 'package:movies/router/app_routes.dart';
 import 'package:movies/state/genre_controller.dart';
 import 'package:movies/state/search_state.dart';
-import 'package:movies/ui/screens/genres/sort_picker.dart';
-import 'package:movies/ui/theme/theme.dart';
 import 'package:movies/ui/screens/genres/genre_search_row.dart';
 import 'package:movies/ui/screens/genres/genre_section.dart';
-import 'package:movies/ui/widgets/sliver_divider.dart';
-import 'package:movies/ui/widgets/vert_anime_list.dart';
+import 'package:movies/ui/theme/theme.dart';
 import 'package:movies/ui/widgets/not_ready.dart';
+import 'package:movies/ui/widgets/vert_anime_list.dart';
+import 'package:movies/utils/utils.dart';
 
 /// 类型页面
-/// 展示动漫类型列表和对应类型的动漫
-/// 支持搜索和类型筛选
+/// 布局：顶部搜索 + 筛选栏（排序 / 视图切换），下方左侧作品列表 + 右侧筛选面板
 @RoutePage(name: 'GenreRoute')
 class GenreScreen extends ConsumerStatefulWidget {
   const GenreScreen({super.key});
@@ -27,6 +26,9 @@ class GenreScreen extends ConsumerStatefulWidget {
 class _GenreScreenState extends ConsumerState<GenreScreen> {
   /// 已调度的跨页请求序号（避免重复 postFrame）
   int _lastRequestSeq = 0;
+
+  /// 列表展示模式
+  AnimeViewMode _viewMode = AnimeViewMode.detail;
 
   @override
   Widget build(BuildContext context) {
@@ -63,109 +65,288 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
     return SafeArea(child: _genreBody(context, pageState));
   }
 
-  /// 等搜索完成后展开 chip 区（requested=false 表示未发起请求）
+  /// 等搜索完成（controller 内部更新 state 后 UI 自动重建）
   Future<void> _finishSearch(Future<bool> search) async {
-    final requested = await search;
-    if (!requested || !mounted) {
-      return;
-    }
-    expandedNotifier.value = true;
+    await search;
   }
 
   Widget _genreBody(BuildContext context, GenrePageState pageState) {
+    final animes = _sortedForView(
+      pageState.currentAnimeList,
+      pageState.selectedSort,
+    );
     return Container(
       color: screenBackground,
-      child: Column(
-        children: [
-          Expanded(
-            child: CustomScrollView(
-              slivers: [
-                SliverList(
-                  delegate: SliverChildListDelegate([
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16.0, 0.0, 24.0),
-                      child: Text(
-                        'Find an Anime',
-                        style: Theme.of(context).textTheme.titleLarge,
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 912),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              GenreSearchRow(pageState.keyword, (searchString) {
+                _finishSearch(
+                  ref
+                      .read(genreControllerProvider.notifier)
+                      .searchByKeyword(searchString),
+                );
+                FocusScope.of(context).unfocus();
+              }),
+              addVerticalSpace(12),
+              _buildFilterBar(pageState),
+              addVerticalSpace(12),
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: _buildResults(pageState, animes)),
+                    addHorizontalSpace(12),
+                    SizedBox(
+                      width: 242,
+                      child: GenreSection(
+                        genreStates: pageState.genreStates,
+                        externalTags: pageState.externalTags,
+                        typeFilter: pageState.typeFilter,
+                        onTypeSelected: (filter) {
+                          _finishSearch(
+                            ref
+                                .read(genreControllerProvider.notifier)
+                                .setTypeFilter(filter),
+                          );
+                        },
+                        onGenresSelected: (fullList) {
+                          // 保持全量列表，只同步选中状态（内部会持久化并重搜）
+                          _finishSearch(
+                            ref
+                                .read(genreControllerProvider.notifier)
+                                .updateSelections(fullList),
+                          );
+                        },
+                        onRemoveExternalTag: (tag) {
+                          _finishSearch(
+                            ref
+                                .read(genreControllerProvider.notifier)
+                                .removeExternalTag(tag),
+                          );
+                        },
                       ),
                     ),
-                    GenreSearchRow(pageState.keyword, (searchString) {
-                      _finishSearch(
-                        ref
-                            .read(genreControllerProvider.notifier)
-                            .searchByKeyword(searchString),
-                      );
-                      FocusScope.of(context).unfocus();
-                    }),
-                    SegmentedButton<SubjectTypeFilter>(
-                      segments: [
-                        for (final f
-                            in SubjectTypeFilter.values) // ALL / Book / Anime
-                          ButtonSegment(value: f, label: Text(f.label)),
-                      ],
-                      selected: {pageState.typeFilter},
-                      onSelectionChanged: (sel) {
-                        _finishSearch(
-                          ref
-                              .read(genreControllerProvider.notifier)
-                              .setTypeFilter(sel.first),
-                        );
-                      },
-                    ),
-                  ]),
+                  ],
                 ),
-                ValueListenableBuilder<bool>(
-                  valueListenable: expandedNotifier,
-                  builder: (BuildContext context, bool value, Widget? child) {
-                    return GenreSection(
-                      genreStates: pageState.genreStates,
-                      externalTags: pageState.externalTags,
-                      isExpanded: value,
-                      onGenresExpanded: (expanded) {
-                        expandedNotifier.value = expanded;
-                      },
-                      onGenresSelected: (fullList) {
-                        // 保持全量列表，只同步选中状态（内部会持久化并重搜）
-                        _finishSearch(
-                          ref
-                              .read(genreControllerProvider.notifier)
-                              .updateSelections(fullList),
-                        );
-                      },
-                      onRemoveExternalTag: (tag) {
-                        _finishSearch(
-                          ref
-                              .read(genreControllerProvider.notifier)
-                              .removeExternalTag(tag),
-                        );
-                      },
-                    );
-                  },
-                ),
-                const SliverDivider(),
-                SortPicker(
-                  selectedSort: pageState.selectedSort,
-                  onSortSelected: (sorting) {
-                    ref.read(genreControllerProvider.notifier).setSort(sorting);
-                  },
-                  useSliver: true,
-                ),
-                VerticalAnimeList(
-                  animes: pageState.currentAnimeList,
-                  onAnimeTap: (animeId, heroTag) {
-                    context.router.push(
-                      AnimeDetailRoute(animeId: animeId, heroTag: heroTag),
-                    );
-                  },
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
-}
 
-/// 类型展开状态通知器
-final ValueNotifier<bool> expandedNotifier = ValueNotifier<bool>(true);
+  /// 顶部筛选栏：左侧排序 pill，右侧视图切换
+  Widget _buildFilterBar(GenrePageState pageState) {
+    return Row(
+      children: [
+        Text('按', style: roboto.copyWith(fontSize: 13, color: textMuted)),
+        addHorizontalSpace(8),
+        for (final sort in Sorting.values) ...[
+          _sortPill(
+            label: _sortLabel(sort),
+            active: pageState.selectedSort == sort,
+            onTap: () =>
+                ref.read(genreControllerProvider.notifier).setSort(sort),
+          ),
+        ],
+        const Spacer(),
+        for (final mode in const [
+          AnimeViewMode.list,
+          AnimeViewMode.detail,
+          AnimeViewMode.grid,
+        ]) ...[
+          _viewButton(mode),
+          addHorizontalSpace(3),
+        ],
+      ],
+    );
+  }
+
+  String _sortLabel(Sorting sort) {
+    switch (sort) {
+      case Sorting.aToz:
+        return '名称';
+      case Sorting.zToa:
+        return '倒序';
+      case Sorting.rating:
+        return '评分';
+      case Sorting.year:
+        return '年份';
+    }
+  }
+
+  Widget _sortPill({
+    required String label,
+    required bool active,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: active ? accentAmber : Colors.transparent,
+      borderRadius: BorderRadius.circular(11),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(11),
+        hoverColor: accentAmber.withValues(alpha: 0.15),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          child: Text(
+            label,
+            style: roboto.copyWith(
+              fontSize: 13,
+              height: 1,
+              fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+              color: active ? onAccent : textSoft,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _viewButton(AnimeViewMode mode) {
+    final active = _viewMode == mode;
+    return Material(
+      color: active ? accentAmber : Colors.transparent,
+      borderRadius: BorderRadius.circular(3),
+      child: InkWell(
+        onTap: () => setState(() => _viewMode = mode),
+        borderRadius: BorderRadius.circular(3),
+        hoverColor: accentAmber.withValues(alpha: 0.15),
+        child: SizedBox(
+          width: 30,
+          height: 17,
+          child: Center(
+            child: _viewIcon(mode, active ? onAccent : textMuted),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 三个视图模式的迷你图标（固定 16×12 图标盒，同 mockup）
+  Widget _viewIcon(AnimeViewMode mode, Color color) {
+    Widget bar(double w, double h) => Container(
+      width: w,
+      height: h,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(1),
+      ),
+    );
+    const gapV = 2.5;
+    switch (mode) {
+      case AnimeViewMode.list:
+        return SizedBox(
+          width: 16,
+          height: 11,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [bar(16, 2), bar(16, 2), bar(16, 2)],
+          ),
+        );
+      case AnimeViewMode.detail:
+        return SizedBox(
+          width: 17,
+          height: 12,
+          child: Row(
+            children: [
+              bar(5, 12),
+              addHorizontalSpace(2),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [bar(10, 2), bar(10, 2), bar(7, 2)],
+                ),
+              ),
+            ],
+          ),
+        );
+      case AnimeViewMode.grid:
+        return SizedBox(
+          width: 15,
+          height: 11,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  bar(6, 4.5),
+                  addHorizontalSpace(gapV),
+                  bar(6, 4.5),
+                ],
+              ),
+              Row(
+                children: [
+                  bar(6, 4.5),
+                  addHorizontalSpace(gapV),
+                  bar(6, 4.5),
+                ],
+              ),
+            ],
+          ),
+        );
+    }
+  }
+
+  /// 左侧结果区
+  Widget _buildResults(GenrePageState pageState, List<Anime> animes) {
+    if (animes.isEmpty) {
+      final filtered =
+          pageState.keyword.trim().isNotEmpty ||
+          pageState.genreStates.any((state) => state.isSelected) ||
+          pageState.externalTags.isNotEmpty;
+      return Center(
+        child: Text(
+          filtered ? '没有找到匹配的作品' : '选择标签或输入关键词开始搜索',
+          style: roboto.copyWith(fontSize: 13, color: textMuted),
+        ),
+      );
+    }
+    return CustomScrollView(
+      slivers: [
+        VerticalAnimeList(
+          animes: animes,
+          onAnimeTap: (animeId, heroTag) {
+            context.router.push(
+              AnimeDetailRoute(animeId: animeId, heroTag: heroTag),
+            );
+          },
+          viewMode: _viewMode,
+        ),
+      ],
+    );
+  }
+
+  /// 展示排序：按当前排序方式整理结果（A-Z / Z-A / 评分 / 年份）
+  List<Anime> _sortedForView(List<Anime> animes, Sorting sort) {
+    final copy = List<Anime>.of(animes);
+    switch (sort) {
+      case Sorting.aToz:
+        copy.sort(
+          (a, b) => (a.title ?? '').toLowerCase().compareTo(
+            (b.title ?? '').toLowerCase(),
+          ),
+        );
+      case Sorting.zToa:
+        copy.sort(
+          (a, b) => (b.title ?? '').toLowerCase().compareTo(
+            (a.title ?? '').toLowerCase(),
+          ),
+        );
+      case Sorting.rating:
+        copy.sort((a, b) => (b.score ?? -1).compareTo(a.score ?? -1));
+      case Sorting.year:
+        copy.sort(
+          (a, b) => (b.aired?.year ?? -1).compareTo(a.aired?.year ?? -1),
+        );
+    }
+    return copy;
+  }
+}

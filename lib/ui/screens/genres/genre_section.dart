@@ -1,27 +1,29 @@
 import 'package:flutter/material.dart';
-import 'package:movies/data/models/genre.dart';
 import 'package:movies/data/models/genre_state.dart';
+import 'package:movies/data/repositories/anime_repository.dart';
+import 'package:movies/state/genre_controller.dart';
 import 'package:movies/ui/theme/theme.dart';
 
+typedef OnTypeSelected = void Function(SubjectTypeFilter filter);
 typedef OnGenresSelected = void Function(List<GenreState>);
-typedef OnGenresExpanded = void Function(bool);
 typedef OnRemoveExternalTag = void Function(String tag);
 
+/// 右侧筛选面板：分类（条目类型）+ 题材（标签）
 class GenreSection extends StatelessWidget {
-  final bool isExpanded;
   final List<GenreState> genreStates;
 
-  /// 外部注入的临时 tag（详情页点标签），展示为前置 chip
+  /// 外部注入的临时 tag（详情页点标签），展示为可移除 pill
   final List<String> externalTags;
-  final OnGenresExpanded onGenresExpanded;
+  final SubjectTypeFilter typeFilter;
+  final OnTypeSelected onTypeSelected;
   final OnGenresSelected onGenresSelected;
   final OnRemoveExternalTag onRemoveExternalTag;
 
   const GenreSection({
     required this.genreStates,
     required this.externalTags,
-    required this.isExpanded,
-    required this.onGenresExpanded,
+    required this.typeFilter,
+    required this.onTypeSelected,
     required this.onGenresSelected,
     required this.onRemoveExternalTag,
     super.key,
@@ -29,136 +31,196 @@ class GenreSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var genreChips = getGenreChips(context);
-    return SliverList(
-      delegate: SliverChildListDelegate(
-        [
-          Material(
-            color: Colors.transparent,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                InkWell(
-                  onTap: () => onGenresExpanded(!isExpanded),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                    child: Row(
-                      children: [
-                        Text(
-                          'Genres',
-                          style: Theme.of(context).textTheme.headlineLarge,
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          width: 16,
-                          height: 16,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: dangerRed,
-                          ),
-                          child: Center(
-                            child: Text(
-                              totalSelected().toString(),
-                              style: verySmallText,
-                            ),
-                          ),
-                        ),
-                        const Spacer(),
-                        Icon(
-                          isExpanded
-                              ? Icons.keyboard_arrow_up
-                              : Icons.keyboard_arrow_down,
-                          color: Colors.white,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeInOut,
-                  child: isExpanded
-                      ? Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                          child: Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            alignment: WrapAlignment.start,
-                            children: genreChips,
-                          ),
-                        )
-                      : const SizedBox(width: double.infinity, height: 0),
-                ),
-              ],
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _panel('分类', [
+            for (final filter in SubjectTypeFilter.values)
+              _tag(
+                label: _typeLabel(filter),
+                active: filter == typeFilter,
+                onTap: () => onTypeSelected(filter),
+              ),
+          ]),
+          _panel('题材', [
+            _tag(
+              label: '全部',
+              active: !AnimeRepository.genreTagNames.any((tag) => genreStates.any((state) => state.genre.name == tag && state.isSelected)),
+              onTap: () => _clearSelected(AnimeRepository.genreTagNames),
             ),
-          ),
+            for (final tag in extraSearchTags)
+              _tag(
+                label: tag,
+                active: true,
+                onTap: () => onRemoveExternalTag(tag),
+              ),
+            for (final genreName in AnimeRepository.genreTagNames)
+              _tag(
+                label: genreName,
+                active: genreStates.any(
+                  (state) => state.genre.name == genreName && state.isSelected,
+                ),
+                onTap: () => _toggle(genreName),
+              ),
+          ]),
+          _panel('地区', [
+            _tag(
+              label: '全部',
+              active: !AnimeRepository.regionTagNames.any((tag) => genreStates.any((state) => state.genre.name == tag && state.isSelected)),
+              onTap: () => _clearSelected(AnimeRepository.regionTagNames),
+            ),
+            for (final genreName in AnimeRepository.regionTagNames)
+              _tag(
+                label: genreName,
+                active: genreStates.any(
+                  (state) => state.genre.name == genreName && state.isSelected,
+                ),
+                onTap: () => _toggle(genreName),
+              ),
+          ]),
+          _panel('受众', [
+            _tag(
+              label: '全部',
+              active: !AnimeRepository.audienceTagNames.any((tag) => genreStates.any((state) => state.genre.name == tag && state.isSelected)),
+              onTap: () => _clearSelected(AnimeRepository.audienceTagNames),
+            ),
+            for (final genreName in AnimeRepository.audienceTagNames)
+              _tag(
+                label: genreName,
+                active: genreStates.any(
+                  (state) => state.genre.name == genreName && state.isSelected,
+                ),
+                onTap: () => _toggle(genreName),
+              ),
+          ]),
+          _panel('来源', [
+            _tag(
+              label: '全部',
+              active: !AnimeRepository.sourceTagNames.any((tag) => genreStates.any((state) => state.genre.name == tag && state.isSelected)),
+              onTap: () => _clearSelected(AnimeRepository.sourceTagNames),
+            ),
+            for (final genreName in AnimeRepository.sourceTagNames)
+              _tag(
+                label: genreName,
+                active: genreStates.any(
+                  (state) => state.genre.name == genreName && state.isSelected,
+                ),
+                onTap: () => _toggle(genreName),
+              ),
+          ]),
+          _panel('进度', [
+            _tag(
+              label: '全部',
+              active: !AnimeRepository.progressTagNames.any((tag) => genreStates.any((state) => state.genre.name == tag && state.isSelected)),
+              onTap: () => _clearSelected(AnimeRepository.progressTagNames),
+            ),
+            for (final genreName in AnimeRepository.progressTagNames)
+              _tag(
+                label: genreName,
+                active: genreStates.any(
+                  (state) => state.genre.name == genreName && state.isSelected,
+                ),
+                onTap: () => _toggle(genreName),
+              ),
+          ]),
         ],
       ),
     );
   }
 
-  /// 搜索 tags 中尚未出现在 genreStates 的部分，作为临时 chip 展示
-  /// 与已有同名 chip 去重（search() 里也会对请求 tag 去重）
+  /// 搜索 tags 中尚未出现在 genreStates 的部分，作为临时 pill 展示
   List<String> get extraSearchTags {
     return [
       for (final tag in externalTags)
         if (tag.trim().isNotEmpty &&
-            !genreStates.any((s) => s.genre.name == tag))
+            !genreStates.any((state) => state.genre.name == tag))
           tag,
     ];
   }
 
-  // 生成标签 genre chips
-  List<Widget> getGenreChips(BuildContext context) {
-    // 搜索 tags 仅作为临时选中项展示在最前，不写入 genreStates
-    final extras = extraSearchTags;
-    final displayStates = [
-      for (final tag in extras)
-        GenreState(
-          genre: Genre(malId: 0, name: tag),
-          isSelected: true,
-        ),
-      ...genreStates,
-    ];
-
-    return List<Widget>.generate(displayStates.length, (index) {
-      final genreState = displayStates[index];
-      return FilterChip(
-        backgroundColor: buttonGrey,
-        selectedColor: accentAmber,
-        labelStyle: TextStyle(
-          color: genreState.isSelected ? onAccent : Colors.white,
-        ),
-        label: Text(
-          genreState.genre.name,
-          style: Theme.of(context).textTheme.labelSmall,
-        ),
-        selected: genreState.isSelected,
-        onSelected: (selected) {
-          // 前 extras.length 个为搜索 tag chip：点击从列表移除该 tag，由父组件重搜
-          if (index < extras.length) {
-            onRemoveExternalTag(extras[index]);
-            return;
-          }
-          // displayStates 前置了 tag chips，genreStates 下标需要回退用来获取 genreStates 真实index用来更新 isSelected
-          final genreIndex = index - extras.length;
-          genreStates[genreIndex] = genreState.copyWith(
-            isSelected: selected,
-          );
-          // 回传全量列表，父组件只同步选中态，不覆盖为「仅已选」
-          onGenresSelected(List<GenreState>.from(genreStates));
-        },
-      );
-    });
+  void _toggle(String tagName) {
+    onGenresSelected([
+      for (var i = 0; i < genreStates.length; i++)
+        genreStates[i].genre.name == tagName
+            ? genreStates[i].copyWith(isSelected: !genreStates[i].isSelected)
+            : genreStates[i],
+    ]);
   }
 
-  List<GenreState> getSelectedGenres() {
-    return genreStates.where((e) => e.isSelected).toList();
+  void _clearSelected(List<String> filterTags) {
+    onGenresSelected([
+      for (final state in genreStates)
+        filterTags.contains(state.genre.name)
+            ? state.copyWith(isSelected: false)
+            : state,
+    ]);
   }
 
-  int totalSelected() {
-    // 搜索 tag chips 也计入已选数量
-    return getSelectedGenres().length + extraSearchTags.length;
+  String _typeLabel(SubjectTypeFilter filter) {
+    switch (filter) {
+      case SubjectTypeFilter.all:
+        return '全部';
+      case SubjectTypeFilter.book:
+        return '书籍';
+      case SubjectTypeFilter.anime:
+        return '动画';
+    }
+  }
+
+  Widget _panel(String title, List<Widget> tags) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.fromLTRB(14, 9, 14, 11),
+      decoration: BoxDecoration(
+        color: searchBarBackground,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text(
+              title,
+              style: roboto.copyWith(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          Wrap(spacing: 1, runSpacing: 2, children: tags),
+        ],
+      ),
+    );
+  }
+
+  Widget _tag({
+    required String label,
+    required bool active,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: active ? accentAmber : Colors.transparent,
+      borderRadius: BorderRadius.circular(6),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(6),
+        hoverColor: accentAmber.withValues(alpha: 0.15),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+          child: Text(
+            label,
+            style: roboto.copyWith(
+              fontSize: 12.5,
+              height: 22 / 12.5,
+              fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+              color: active ? onAccent : textSoft,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -50,11 +50,11 @@ class GenrePageState {
   /// 当前选中的类型 tab
   final SubjectTypeFilter typeFilter;
 
-  /// 已选中的tag名
+  /// 已选中的类型名
   List<String> selectedNames() => [
-    for (final state in genreStates)
-      if (state.isSelected) state.genre.name,
-  ];
+        for (final state in genreStates)
+          if (state.isSelected) state.genre.name,
+      ];
 
   GenrePageState copyWith({
     List<GenreState>? genreStates,
@@ -89,7 +89,9 @@ class GenreController extends _$GenreController {
     final genreStates = [
       for (final genre in genres) GenreState(genre: genre, isSelected: false),
     ];
-    return GenrePageState(genreStates: await _restoreSelected(genreStates));
+    return GenrePageState(
+      genreStates: await _restoreSelected(genreStates),
+    );
   }
 
   /// 从本地存储恢复选中状态（只改 isSelected，不重建列表）
@@ -161,24 +163,19 @@ class GenreController extends _$GenreController {
   /// 移除外部临时 tag 并重搜
   Future<bool> removeExternalTag(String tag) async {
     final pageState = state.value!;
-    state = AsyncData(
-      pageState.copyWith(
-        externalTags: [
-          for (final t in pageState.externalTags)
-            if (t != tag) t,
-        ],
-      ),
-    );
+    state = AsyncData(pageState.copyWith(
+      externalTags: [
+        for (final t in pageState.externalTags)
+          if (t != tag) t,
+      ],
+    ));
     return search();
   }
 
   /// 仅保存已选中的类型名
   Future<void> saveSelectedGenres() async {
     final prefs = await ref.read(prefsProvider.future);
-    await prefs.setString(
-      genreStringKey,
-      state.value!.selectedNames().join(','),
-    );
+    await prefs.setString(genreStringKey, state.value!.selectedNames().join(','));
   }
 
   /// 已选中的类型名
@@ -201,7 +198,6 @@ class GenreController extends _$GenreController {
         selectedTags.add(tag);
       }
     }
-
     // append selectedTags from genreStates
     for (final name in pageState.selectedNames()) {
       addTag(name);
@@ -214,19 +210,14 @@ class GenreController extends _$GenreController {
       return false;
     }
     // 搜索动漫
-    final animeList = await ref
-        .read(animeRepositoryProvider)
-        .searchAnimes(
+    final animeList = await ref.read(animeRepositoryProvider).searchAnimes(
           query,
           1,
           selectedTags.isEmpty ? null : selectedTags,
-          types: pageState.typeFilter.types,
         );
     if (!ref.mounted) {
       return true;
     }
-    // update state.currentAnimeList
-    /// Riverpod 的 notifier 模式 ——`state` 是一个带 setter 的属性，封装好了 notifyListeners
     state = AsyncData(
       pageState.copyWith(currentAnimeList: animeList ?? const []),
     );

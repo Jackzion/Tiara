@@ -69,50 +69,60 @@ class AnimeRepository {
     _loadExtrasCache(await prefs);
   }
 
-  /// 加载动漫标签列表
-  /// 优先读库；空库时写入常用标签（Bangumi 无独立标签列表接口）
+  /// 加载题材标签
+  static const List<String> sourceTagNames = ['游戏改','原创','小说改','动画改','漫画改','影视改'];
+  static const List<String> genreTagNames = [
+    '科幻',
+    '奇幻',
+    '恋爱',
+    '百合',
+    '治愈',
+    '悬疑',
+    '推理',
+    '机战',
+    '校园',
+    '音乐',
+    '日常',
+    '搞笑',
+    '动作',
+    '冒险',
+    '魔法',
+    '青春',
+    '剧情',
+    '恐怖',
+    '历史',
+    '运动',
+    '美食',
+    '萌',
+    '后宫',
+  ];
+  static const List<String> regionTagNames = ['中国', '日本', '美国', '韩国', '台湾'];
+  static const List<String> audienceTagNames = [
+    '少年',
+    '少女',
+    '青年',
+    'BL',
+    '一般向',
+    'GL',
+    '名著',
+    '儿童',
+    '女性',
+    'TL',
+    '无cp',
+  ];
+  static const List<String> progressTagNames = ['已完结', '连载中', '停载'];
   Future<void> setupGenres() async {
-    final stored = await database.getGenres();
-    if (stored.isNotEmpty) {
-      animeGenres = [
-        for (final g in stored) Genre(malId: g.remoteId, name: g.name),
-      ];
-      return;
-    }
-    const tagNames = [
-      '科幻',
-      '奇幻',
-      '恋爱',
-      '百合',
-      '治愈',
-      '悬疑',
-      '推理',
-      '机战',
-      '校园',
-      '音乐',
-      '日常',
-      '搞笑',
-      '动作',
-      '冒险',
-      '魔法',
-      '青春',
-      '剧情',
-      '恐怖',
-      '历史',
-      '运动',
-      '美食',
-      '萌',
-      '后宫',
-      '异世界',
+    final tagNames = [
+      ...genreTagNames,
+      ...regionTagNames,
+      ...audienceTagNames,
+      ...progressTagNames,
+      ...sourceTagNames,
     ];
     animeGenres = [
       for (var i = 0; i < tagNames.length; i++)
         Genre(malId: i + 1, name: tagNames[i]),
     ];
-    await database.saveGenres([
-      for (var i = 0; i < tagNames.length; i++)
-        DBAnimeGenre(id: i + 1, remoteId: i + 1, name: tagNames[i]),
-    ]);
   }
 
   /// 获取热门动漫列表（全站热度）

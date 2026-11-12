@@ -28,55 +28,48 @@ class _GenreSearchRowState extends ConsumerState<GenreSearchRow> {
   Widget build(BuildContext context) {
     // 与外部 searchTextNotifier 保持同步（Dialog / 菜单写入时更新输入框）
     animeTextController.text = widget.searchText;
-    return Row(
-      mainAxisSize: MainAxisSize.max,
-      children: [
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(left: 16.0, right: 16.0),
-            child: TextField(
-              style: const TextStyle(color: Colors.white),
-              focusNode: textFocusNode,
-              keyboardType: TextInputType.text,
-              enableSuggestions: false,
-              autofocus: false,
-              onSubmitted: (value) {
-                widget.onSearch(value);
-              },
-              controller: animeTextController,
-              autocorrect: false,
-              decoration: InputDecoration(
-                filled: true,
-                focusColor: searchBarBackground,
-                focusedBorder: null,
-                enabledBorder: null,
-                fillColor: searchBarBackground,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide.none,
-                ),
-                hintText: 'anime name, genre',
-                hintStyle: body1Regular.copyWith(color: posterBorder),
-                suffixIcon: IconButton(
-                  onPressed: () {
-                    animeTextController.clear();
-                  },
-                  icon: const Icon(
-                    Icons.close,
-                    color: Colors.white,
-                  ),
-                ),
-                prefixIcon: IconButton(
-                  icon: const Icon(Icons.search, color: Colors.white),
-                  onPressed: () {
-                    widget.onSearch(animeTextController.text);
-                  },
-                ),
-              ),
-            ),
-          ),
+    return TextField(
+      style: const TextStyle(color: Colors.white),
+      focusNode: textFocusNode,
+      keyboardType: TextInputType.text,
+      enableSuggestions: false,
+      autofocus: false,
+      onSubmitted: widget.onSearch,
+      controller: animeTextController,
+      autocorrect: false,
+      decoration: InputDecoration(
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 10,
         ),
-      ],
+        filled: true,
+        focusColor: searchBarBackground,
+        focusedBorder: null,
+        enabledBorder: null,
+        fillColor: searchBarBackground,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide.none,
+        ),
+        hintText: 'anime name, genre',
+        hintStyle: body1Regular.copyWith(
+          color: posterBorder,
+          fontSize: 13,
+        ),
+        suffixIcon: IconButton(
+          onPressed: () {
+            animeTextController.clear();
+          },
+          icon: const Icon(Icons.close, size: 18, color: Colors.white),
+        ),
+        prefixIcon: IconButton(
+          icon: const Icon(Icons.search, size: 20, color: Colors.white),
+          onPressed: () {
+            widget.onSearch(animeTextController.text);
+          },
+        ),
+      ),
     );
   }
 }
