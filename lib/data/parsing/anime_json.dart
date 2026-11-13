@@ -1,6 +1,4 @@
 /// Bangumi JSON 通用解析辅助
-/// Anime / AnimeDetails 等模型共用，避免各写一份
-
 /// 解析日期字符串（如 2023-09-29）
 DateTime? parseDate(String? value) {
   if (value == null || value.isEmpty) {

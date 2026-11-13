@@ -30,6 +30,7 @@ class GenrePageState {
     this.keyword = '',
     this.externalTags = const [],
     this.typeFilter = SubjectTypeFilter.all,
+    this.offset = 0,
   });
 
   /// 类型 chip 状态列表
@@ -52,9 +53,12 @@ class GenrePageState {
 
   /// 已选中的类型名
   List<String> selectedNames() => [
-        for (final state in genreStates)
-          if (state.isSelected) state.genre.name,
-      ];
+    for (final state in genreStates)
+      if (state.isSelected) state.genre.name,
+  ];
+
+  /// pageIndex - offset
+  final int offset;
 
   GenrePageState copyWith({
     List<GenreState>? genreStates,
@@ -63,6 +67,7 @@ class GenrePageState {
     String? keyword,
     List<String>? externalTags,
     SubjectTypeFilter? typeFilter,
+    int? offset,
   }) {
     return GenrePageState(
       genreStates: genreStates ?? this.genreStates,
@@ -71,6 +76,7 @@ class GenrePageState {
       keyword: keyword ?? this.keyword,
       externalTags: externalTags ?? this.externalTags,
       typeFilter: typeFilter ?? this.typeFilter,
+      offset: offset ?? this.offset,
     );
   }
 }
@@ -89,9 +95,7 @@ class GenreController extends _$GenreController {
     final genreStates = [
       for (final genre in genres) GenreState(genre: genre, isSelected: false),
     ];
-    return GenrePageState(
-      genreStates: await _restoreSelected(genreStates),
-    );
+    return GenrePageState(genreStates: await _restoreSelected(genreStates));
   }
 
   /// 从本地存储恢复选中状态（只改 isSelected，不重建列表）
@@ -135,7 +139,7 @@ class GenreController extends _$GenreController {
       );
     }
     // set type filter
-    if (request.types != null && request.types.isNotEmpty) {
+    if (request.types.isNotEmpty) {
       pageState = pageState.copyWith(typeFilter: _filterOfType(request.types));
     }
     state = AsyncData(pageState);
@@ -160,22 +164,33 @@ class GenreController extends _$GenreController {
     return search();
   }
 
+  /// update the offset
+  Future<bool> setOffset(int offset) async {
+    state = AsyncData(state.value!.copyWith(offset: offset));
+    return search();
+  }
+
   /// 移除外部临时 tag 并重搜
   Future<bool> removeExternalTag(String tag) async {
     final pageState = state.value!;
-    state = AsyncData(pageState.copyWith(
-      externalTags: [
-        for (final t in pageState.externalTags)
-          if (t != tag) t,
-      ],
-    ));
+    state = AsyncData(
+      pageState.copyWith(
+        externalTags: [
+          for (final t in pageState.externalTags)
+            if (t != tag) t,
+        ],
+      ),
+    );
     return search();
   }
 
   /// 仅保存已选中的类型名
   Future<void> saveSelectedGenres() async {
     final prefs = await ref.read(prefsProvider.future);
-    await prefs.setString(genreStringKey, state.value!.selectedNames().join(','));
+    await prefs.setString(
+      genreStringKey,
+      state.value!.selectedNames().join(','),
+    );
   }
 
   /// 已选中的类型名
@@ -198,6 +213,7 @@ class GenreController extends _$GenreController {
         selectedTags.add(tag);
       }
     }
+
     // append selectedTags from genreStates
     for (final name in pageState.selectedNames()) {
       addTag(name);
@@ -210,10 +226,13 @@ class GenreController extends _$GenreController {
       return false;
     }
     // 搜索动漫
-    final animeList = await ref.read(animeRepositoryProvider).searchAnimes(
+    final animeList = await ref
+        .read(animeRepositoryProvider)
+        .searchAnimes(
           query,
           1,
           selectedTags.isEmpty ? null : selectedTags,
+          types: pageState.typeFilter.types,
         );
     if (!ref.mounted) {
       return true;
@@ -224,7 +243,7 @@ class GenreController extends _$GenreController {
     return true;
   }
 
-  /// 把 List<int> 映回枚举：空列表→all，[1]→book，[2]→anime
+  /// 把 List 映回枚举：空列表→all，[1]→book，[2]→anime
   SubjectTypeFilter _filterOfType(List<int> types) {
     if (types.isEmpty) {
       return SubjectTypeFilter.all;

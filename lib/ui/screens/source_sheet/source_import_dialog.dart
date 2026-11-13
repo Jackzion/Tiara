@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/src/widgets/framework.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:html/parser.dart' as ruleParser;
 import 'package:movies/providers.dart';
 import 'package:movies/ui/theme/theme.dart';
 import 'package:movies/utils/rule_import_parser.dart';
@@ -41,11 +39,13 @@ class _SourceImportDialogState extends ConsumerState<SourceImportDialog> {
               keyboardType: TextInputType.multiline,
               decoration: InputDecoration(
                 filled: true,
-                fillColor: posterBorder,
+                fillColor: ArchivePalette.raised,
                 hintText: '{ "name": "...", "baseURL": "...", ... }',
-                hintStyle: body3Regular.copyWith(color: buttonGrey),
+                hintStyle: body3Regular.copyWith(color: posterBorder),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(
+                    ArchiveGeometry.panelRadius,
+                  ),
                   borderSide: BorderSide.none,
                 ),
               ),
@@ -82,6 +82,8 @@ class _SourceImportDialogState extends ConsumerState<SourceImportDialog> {
   Future<void> _pasteFromClipboard() async {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     final text = data?.text;
+    if (!mounted) return;
+
     if (text == null || text.isEmpty) {
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('剪贴板是空的')));
@@ -103,7 +105,7 @@ class _SourceImportDialogState extends ConsumerState<SourceImportDialog> {
 
     try {
       // 解析 ruleParser
-      final parseResult = await RuleImportParser.parse(_textController.text);
+      final parseResult = RuleImportParser.parse(_textController.text);
 
       // 合并入库
       final rulesRepository = await ref.read(rulesRepositoryProvider.future);
@@ -117,6 +119,7 @@ class _SourceImportDialogState extends ConsumerState<SourceImportDialog> {
         messenger.showSnackBar(const SnackBar(content: Text('没有解析到规则')));
         return;
       }
+      if (!mounted) return;
 
       if (merged.importedCount == 0) {
         // 全部解析失败：不写盘，提示错误

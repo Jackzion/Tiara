@@ -62,3 +62,5 @@ app.*.map.json
 /web/favicon.png
 /web/icons/Icon-*.png
 /.vscode
+# Flutter DevFS temp dir (use TEMP=./.tmp in low-integrity terminals)
+.tmp/

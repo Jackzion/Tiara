@@ -103,7 +103,7 @@ class RuleEngine {
       );
       return _responseToString(response);
     } on DioException catch (e) {
-      throw RuleEngineException('搜索请求失败: ${searchUrl}', cause: e);
+      throw RuleEngineException('搜索请求失败: $searchUrl', cause: e);
     }
   }
 
@@ -165,7 +165,7 @@ class RuleEngine {
     return html_parser.parse(raw).documentElement!;
   }
 
-  /// 解析搜索结果 HTML → List<SearchItem>
+  /// 解析搜索结果 HTML → SearchItems
   Future<List<SearchItem>> parseSearchHtml(SourceRule rule, String raw) async {
     final root = _document(raw);
     // 根据 rule.searchList 语义规则（//div[2]/text()）搜索结果列表的 nodelist
@@ -191,7 +191,7 @@ class RuleEngine {
     return items;
   }
 
-  /// 解析详情页 HTML → List<Road>
+  /// 解析详情页 HTML → Roads
   List<Road> parseChaptersHtml(SourceRule rule, String raw) {
     // 解析 HTML 到 DOM 文档
     final root = _document(raw);

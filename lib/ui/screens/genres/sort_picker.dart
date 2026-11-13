@@ -1,6 +1,7 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:movies/ui/theme/archive_tokens.dart';
 import 'package:movies/utils/utils.dart';
 
 typedef OnSortSelected = void Function(Sorting);
@@ -38,7 +39,7 @@ class _SortPickerState extends ConsumerState<SortPicker> {
         addHorizontalSpace(16),
         // 2
         PopupMenuButton<Sorting>(
-          icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+          icon: Icon(Icons.arrow_drop_down, color: ArchivePalette.ink),
           // 3
           onSelected: (Sorting value) {
             widget.onSortSelected(value);

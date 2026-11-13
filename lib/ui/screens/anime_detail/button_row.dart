@@ -1,18 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:movies/utils/utils.dart';
-import 'package:movies/ui/widgets/text_icon.dart';
-import 'package:movies/ui/theme/theme.dart';
+import 'package:movies/ui/theme/archive_tokens.dart';
 
 /// 收藏按钮点击回调类型
 typedef OnFavoriteSelected = void Function();
 
-/// 电影详情页底部按钮行组件
-/// 包含收藏、评分、分享三个按钮
-/// 收藏按钮支持心跳动画效果
-class ButtonRow extends StatefulWidget {
-  /// 是否已收藏
+/// 详情页动作行：收藏 / 评分 / 分享。
+///
+/// 纸底 + 发丝线的小方钮；选中只加 10% 墨，不做心跳循环动画。
+class ButtonRow extends StatelessWidget {
   final bool favoriteSelected;
-  /// 收藏按钮点击回调
   final OnFavoriteSelected onFavoriteSelected;
 
   const ButtonRow({
@@ -22,129 +18,91 @@ class ButtonRow extends StatefulWidget {
   });
 
   @override
-  State<ButtonRow> createState() => _ButtonRowState();
+  Widget build(BuildContext context) {
+    final tone = ArchiveTone.of(context);
+    return Row(
+      children: [
+        _ActionButton(
+          icon: favoriteSelected ? Icons.favorite : Icons.favorite_border,
+          label: favoriteSelected ? '已收藏' : '收藏',
+          selected: favoriteSelected,
+          iconColor: favoriteSelected ? ArchivePalette.error : null,
+          onTap: onFavoriteSelected,
+        ),
+        const SizedBox(width: 10),
+        _ActionButton(
+          icon: Icons.thumb_up_alt_outlined,
+          label: '评分',
+          onTap: () {},
+        ),
+        const SizedBox(width: 10),
+        _ActionButton(icon: Icons.ios_share, label: '分享', onTap: () {}),
+        const Spacer(),
+        // 右侧留一枚档案副号，平衡动作行的重量
+        Text(
+          'WK-ENTRY',
+          style: ArchiveType.code.copyWith(color: tone.hairline),
+        ),
+      ],
+    );
+  }
 }
 
-/// ButtonRow 的状态类
-/// 使用 TickerProviderStateMixin 支持多个动画控制器
-class _ButtonRowState extends State<ButtonRow> with TickerProviderStateMixin {
-  /// 尺寸动画控制器，控制心跳动画的大小变化
-  late AnimationController _sizeController;
-  /// 尺寸动画，从原始大小到放大 1.5 倍
-  late Animation<double> _sizeAnimation;
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.selected = false,
+    this.iconColor,
+  });
 
-  /// 颜色动画控制器，控制心跳动画的颜色变化
-  late AnimationController _colorController;
-  /// 颜色动画，从白色到红色
-  late Animation<Color?> _colorAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    // 创建尺寸控制器，1秒动画，重复播放（先正向再反向）
-    _sizeController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 1),
-    )..repeat(reverse: true);
-
-    // 创建尺寸动画，从 1.0 到 1.5 的缩放效果
-    _sizeAnimation = Tween<double>(
-      begin: 1.0,
-      end: 1.5,
-    ).animate(
-      CurvedAnimation(parent: _sizeController, curve: Curves.easeInOut),
-    );
-
-    // 创建颜色控制器，1秒动画，重复播放
-    _colorController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 1),
-    )..repeat(reverse: true);
-
-    // 创建颜色动画，从白色到红色
-    _colorAnimation = ColorTween(
-      begin: Colors.white,
-      end: dangerRed,
-    ).animate(
-      CurvedAnimation(parent: _colorController, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    // 释放动画控制器资源
-    _sizeController.dispose();
-    _colorController.dispose();
-    super.dispose();
-  }
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool selected;
+  final Color? iconColor;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 16.0, top: 0, bottom: 32),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.start,
-        mainAxisSize: MainAxisSize.max,
-        children: [
-          TextIcon(
-            text: Text(
-              'Favorite',
-              style: Theme.of(context).textTheme.labelSmall,
-            ),
-            icon: IconButton(
-              onPressed: () {
-                widget.onFavoriteSelected();
-              },
-              // 如果已收藏，显示心跳动画；否则显示普通心形图标
-              icon: widget.favoriteSelected
-                  ? AnimatedBuilder(
-                      animation: Listenable.merge([
-                        _sizeController,
-                        _colorController,
-                      ]),
-                      builder: (context, child) {
-                        return Icon(
-                          Icons.favorite_outlined,
-                          size: 21 * _sizeAnimation.value,
-                          color: _colorAnimation.value,
-                        );
-                      },
-                    )
-                  : const Icon(
-                      Icons.favorite_border,
-                      color: Colors.white,
-                    ),
+    final tone = ArchiveTone.of(context);
+    final fg = tone.ink;
+    return SizedBox(
+      height: 40,
+      child: Material(
+        color: selected ? tone.raisedHigh : tone.milk,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(ArchiveGeometry.panelRadius),
+          side: BorderSide(
+            color: selected ? tone.hairlineStrong : tone.hairline,
+            width: ArchiveGeometry.hairlineWidth,
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          hoverColor: tone.raisedHigh,
+          splashFactory: NoSplash.splashFactory,
+          highlightColor: Colors.transparent,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 16, color: iconColor ?? fg),
+                const SizedBox(width: 7),
+                Text(
+                  label,
+                  style: ArchiveType.body.copyWith(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: fg,
+                  ),
+                ),
+              ],
             ),
           ),
-          addHorizontalSpace(32),
-          TextIcon(
-            text: Text(
-              'Rate',
-              style: Theme.of(context).textTheme.labelSmall,
-            ),
-            icon: IconButton(
-              onPressed: () {},
-              icon: const Icon(
-                Icons.thumb_up_alt_outlined,
-                color: Colors.white,
-              ),
-            ),
-          ),
-          addHorizontalSpace(32),
-          TextIcon(
-            text: Text(
-              'Share',
-              style: Theme.of(context).textTheme.labelSmall,
-            ),
-            icon: IconButton(
-              onPressed: () {},
-              icon: const Icon(
-                Icons.ios_share,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

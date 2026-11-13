@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:lumberdash/lumberdash.dart';
 import 'package:movies/data/api/request_throttle.dart';
 import 'package:movies/data/api/timing_interceptor.dart';
 
@@ -73,7 +74,7 @@ class BangumiApiService {
       body['sort'] = sort;
     }
     // debug log
-    print('searchSubjects: $body');
+    logMessage('searchSubjects: [requestbody] $body [limit/offset] $limit / $offset');
     return dio.post(
       '/v0/search/subjects',
       queryParameters: {'limit': limit, 'offset': offset},

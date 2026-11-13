@@ -9,6 +9,7 @@ import 'package:movies/state/search_state.dart';
 import 'package:movies/ui/screens/genres/genre_search_row.dart';
 import 'package:movies/ui/screens/genres/genre_section.dart';
 import 'package:movies/ui/theme/theme.dart';
+import 'package:movies/ui/widgets/archive/archive_ui.dart';
 import 'package:movies/ui/widgets/not_ready.dart';
 import 'package:movies/ui/widgets/vert_anime_list.dart';
 import 'package:movies/utils/utils.dart';
@@ -35,13 +36,13 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
     // 数据层就绪（标签预热完成）后才渲染
     final dataReadyAsync = ref.watch(dataReadyProvider);
     return dataReadyAsync.when(
-      error: (e, st) => Text(e.toString()),
+      error: (e, st) => ArchiveLoadError(message: e.toString()),
       loading: () => const NotReady(),
       data: (_) {
         // 分类页状态（chip 选中 + 搜索结果），controller 状态变化自动 rebuild
         final genreAsync = ref.watch(genreControllerProvider);
         return genreAsync.when(
-          error: (e, st) => Text(e.toString()),
+          error: (e, st) => ArchiveLoadError(message: e.toString()),
           loading: () => const NotReady(),
           data: buildScreen,
         );
@@ -71,73 +72,131 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
   }
 
   Widget _genreBody(BuildContext context, GenrePageState pageState) {
+    final tone = ArchiveTone.of(context);
     final animes = _sortedForView(
       pageState.currentAnimeList,
       pageState.selectedSort,
     );
-    return Container(
-      color: screenBackground,
-      alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 912),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              GenreSearchRow(pageState.keyword, (searchString) {
-                _finishSearch(
-                  ref
-                      .read(genreControllerProvider.notifier)
-                      .searchByKeyword(searchString),
-                );
-                FocusScope.of(context).unfocus();
-              }),
-              addVerticalSpace(12),
-              _buildFilterBar(pageState),
-              addVerticalSpace(12),
-              Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: _buildResults(pageState, animes)),
-                    addHorizontalSpace(12),
-                    SizedBox(
-                      width: 242,
-                      child: GenreSection(
-                        genreStates: pageState.genreStates,
-                        externalTags: pageState.externalTags,
-                        typeFilter: pageState.typeFilter,
-                        onTypeSelected: (filter) {
-                          _finishSearch(
-                            ref
-                                .read(genreControllerProvider.notifier)
-                                .setTypeFilter(filter),
-                          );
-                        },
-                        onGenresSelected: (fullList) {
-                          // 保持全量列表，只同步选中状态（内部会持久化并重搜）
-                          _finishSearch(
-                            ref
-                                .read(genreControllerProvider.notifier)
-                                .updateSelections(fullList),
-                          );
-                        },
-                        onRemoveExternalTag: (tag) {
-                          _finishSearch(
-                            ref
-                                .read(genreControllerProvider.notifier)
-                                .removeExternalTag(tag),
-                          );
+    return Atmosphere(
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Padding(
+              padding: archivePagePadding(context),
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1180),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      GenreSearchRow(pageState.keyword, (searchString) {
+                        _finishSearch(
+                          ref
+                              .read(genreControllerProvider.notifier)
+                              .searchByKeyword(searchString),
+                        );
+                        FocusScope.of(context).unfocus();
+                      }),
+                      addVerticalSpace(14),
+                      _buildFilterBar(pageState),
+                      addVerticalSpace(16),
+                      // 结果计数 + 发丝线，代替原来的空白隔断
+                      Row(
+                        children: [
+                          ArchiveCode(
+                            '${animes.length.toString().padLeft(3, '0')} ENTRIES',
+                          ),
+                          const SizedBox(width: 9),
+                          Expanded(
+                            child: Divider(
+                              height: 1,
+                              thickness: ArchiveGeometry.dividerWidth,
+                              color: tone.hairline,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          SizedBox(
+                            width: 3,
+                            height: 3,
+                            child: ColoredBox(color: tone.ink),
+                          ),
+                        ],
+                      ),
+                      addVerticalSpace(12),
+                      Expanded(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(child: _buildResults(pageState, animes)),
+                            addHorizontalSpace(20),
+                            SizedBox(
+                              width: 242,
+                              child: GenreSection(
+                                genreStates: pageState.genreStates,
+                                externalTags: pageState.externalTags,
+                                typeFilter: pageState.typeFilter,
+                                onTypeSelected: (filter) {
+                                  _finishSearch(
+                                    ref
+                                        .read(genreControllerProvider.notifier)
+                                        .setTypeFilter(filter),
+                                  );
+                                },
+                                onGenresSelected: (fullList) {
+                                  // 保持全量列表，只同步选中状态（内部会持久化并重搜）
+                                  _finishSearch(
+                                    ref
+                                        .read(genreControllerProvider.notifier)
+                                        .updateSelections(fullList),
+                                  );
+                                },
+                                onRemoveExternalTag: (tag) {
+                                  _finishSearch(
+                                    ref
+                                        .read(genreControllerProvider.notifier)
+                                        .removeExternalTag(tag),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Divider(
+                        height: 1,
+                        thickness: ArchiveGeometry.dividerWidth,
+                        color: tone.hairline,
+                      ),
+                      const SizedBox(height: 8),
+                      ArchivePager(
+                        page: pageState.offset,
+                        totalPages: 10,
+                        onPageChanged: (int offset){
+                          ref
+                              .read(genreControllerProvider.notifier)
+                              .setOffset(offset);
                         },
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ],
+            ),
           ),
-        ),
+          const Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: FrostedHeader(
+              child: ArchiveMasthead(
+                title: '类型索引',
+                code: 'MOVIES / GENRE INDEX',
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -161,10 +220,7 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
           AnimeViewMode.list,
           AnimeViewMode.detail,
           AnimeViewMode.grid,
-        ]) ...[
-          _viewButton(mode),
-          addHorizontalSpace(3),
-        ],
+        ]) ...[_viewButton(mode), addHorizontalSpace(3)],
       ],
     );
   }
@@ -187,22 +243,23 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
     required bool active,
     required VoidCallback onTap,
   }) {
+    final tone = ArchiveTone.of(context);
     return Material(
-      color: active ? accentAmber : Colors.transparent,
-      borderRadius: BorderRadius.circular(11),
+      color: active ? tone.ink : Colors.transparent,
+      borderRadius: BorderRadius.circular(ArchiveGeometry.coverRadius),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(11),
-        hoverColor: accentAmber.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(ArchiveGeometry.coverRadius),
+        hoverColor: tone.raisedHigh,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
           child: Text(
             label,
-            style: roboto.copyWith(
-              fontSize: 13,
+            style: ArchiveType.body.copyWith(
+              fontSize: 12,
               height: 1,
               fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-              color: active ? onAccent : textSoft,
+              color: active ? tone.surface : tone.muted,
             ),
           ),
         ),
@@ -211,19 +268,20 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
   }
 
   Widget _viewButton(AnimeViewMode mode) {
+    final tone = ArchiveTone.of(context);
     final active = _viewMode == mode;
     return Material(
-      color: active ? accentAmber : Colors.transparent,
-      borderRadius: BorderRadius.circular(3),
+      color: active ? tone.ink : Colors.transparent,
+      borderRadius: BorderRadius.circular(ArchiveGeometry.coverRadius),
       child: InkWell(
         onTap: () => setState(() => _viewMode = mode),
-        borderRadius: BorderRadius.circular(3),
-        hoverColor: accentAmber.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(ArchiveGeometry.coverRadius),
+        hoverColor: tone.raisedHigh,
         child: SizedBox(
-          width: 30,
-          height: 17,
+          width: 32,
+          height: 20,
           child: Center(
-            child: _viewIcon(mode, active ? onAccent : textMuted),
+            child: _viewIcon(mode, active ? tone.surface : tone.muted),
           ),
         ),
       ),
@@ -276,18 +334,10 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
-                children: [
-                  bar(6, 4.5),
-                  addHorizontalSpace(gapV),
-                  bar(6, 4.5),
-                ],
+                children: [bar(6, 4.5), addHorizontalSpace(gapV), bar(6, 4.5)],
               ),
               Row(
-                children: [
-                  bar(6, 4.5),
-                  addHorizontalSpace(gapV),
-                  bar(6, 4.5),
-                ],
+                children: [bar(6, 4.5), addHorizontalSpace(gapV), bar(6, 4.5)],
               ),
             ],
           ),
@@ -305,7 +355,10 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
       return Center(
         child: Text(
           filtered ? '没有找到匹配的作品' : '选择标签或输入关键词开始搜索',
-          style: roboto.copyWith(fontSize: 13, color: textMuted),
+          style: ArchiveType.body.copyWith(
+            fontSize: 13,
+            color: ArchiveTone.of(context).muted,
+          ),
         ),
       );
     }

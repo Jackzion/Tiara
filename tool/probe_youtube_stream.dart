@@ -2,8 +2,8 @@
 // 运行: dart run tool/probe_youtube_stream.dart
 import 'dart:io';
 
-import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
+import 'package:lumberdash/lumberdash.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 /// 读 Windows WinINET 代理（IE/WebView2 同款），失败则 DIRECT
@@ -44,43 +44,43 @@ String _windowsProxy() {
 Future<void> main() async {
   const id = '7rxIZ3z0S4s';
   final proxy = _windowsProxy();
-  print('proxy → $proxy');
+  logMessage('proxy → $proxy');
 
   final io = HttpClient()..findProxy = (_) => proxy;
   final client = IOClient(io);
   final yt = YoutubeExplode(YoutubeHttpClient(client));
   try {
     final video = await yt.videos.get(id);
-    print('title: ${video.title}');
-    print('duration: ${video.duration}');
+    logMessage('title: ${video.title}');
+    logMessage('duration: ${video.duration}');
 
     final manifest = await yt.videos.streamsClient.getManifest(id);
-    print('--- muxed (${manifest.muxed.length}) ---');
+    logMessage('--- muxed (${manifest.muxed.length}) ---');
     for (final s in manifest.muxed) {
-      print('  ${s.qualityLabel} ${s.bitrate} ${s.size}');
-      print('    ${s.url}');
+      logMessage('  ${s.qualityLabel} ${s.bitrate} ${s.size}');
+      logMessage('    ${s.url}');
     }
-    print('--- hls (${manifest.hls.length}) ---');
+    logMessage('--- hls (${manifest.hls.length}) ---');
     for (final s in manifest.hls) {
-      print('  ${s.url}');
+      logMessage('  ${s.url}');
     }
-    print('--- videoOnly top3 ---');
+    logMessage('--- videoOnly top3 ---');
     for (final s in manifest.videoOnly.take(3)) {
-      print('  ${s.qualityLabel} ${s.bitrate}');
+      logMessage('  ${s.qualityLabel} ${s.bitrate}');
     }
 
     if (manifest.muxed.isNotEmpty) {
       final muxed = manifest.muxed.withHighestBitrate();
-      print('PICK muxed: ${muxed.qualityLabel}');
-      print('PICK url: ${muxed.url}');
+      logMessage('PICK muxed: ${muxed.qualityLabel}');
+      logMessage('PICK url: ${muxed.url}');
     } else if (manifest.hls.isNotEmpty) {
-      print('PICK hls: ${manifest.hls.first.url}');
+      logMessage('PICK hls: ${manifest.hls.first.url}');
     } else {
-      print('PICK: no muxed/hls');
+      logMessage('PICK: no muxed/hls');
     }
   } catch (e, st) {
-    print('FAILED: $e');
-    print(st);
+    logMessage('FAILED: $e');
+    logMessage(st.toString());
   } finally {
     yt.close();
   }

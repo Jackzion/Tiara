@@ -1,43 +1,35 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:movies/data/models/anime_details.dart';
-import 'package:movies/utils/utils.dart';
-import 'package:movies/ui/theme/theme.dart';
+import 'package:movies/ui/theme/archive_tokens.dart';
 
-/// 动漫详情页顶部渐进色背景横幅
-/// 图源优先 AniList bannerImage（按 animeId 补充），缺失时回退条目封面
-class DetailBanner extends ConsumerStatefulWidget {
-  /// 动漫详情数据
+/// 详情页顶部图版：横幅铺底，向下淡入纸色，标题交给正文区的档案条目。
+class DetailBanner extends StatefulWidget {
   final AnimeDetails details;
-
-  /// 对应 animeId 的 bannerImage（AniList 补充数据）
   final String? bannerImage;
-
-  /// 横幅高度
   final double height;
 
   const DetailBanner({
     required this.details,
     this.bannerImage,
-    this.height = 280,
+    this.height = 300,
     super.key,
   });
 
   @override
-  ConsumerState<DetailBanner> createState() => _DetailBannerState();
+  State<DetailBanner> createState() => _DetailBannerState();
 }
 
-class _DetailBannerState extends ConsumerState<DetailBanner>
+class _DetailBannerState extends State<DetailBanner>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
-    duration: const Duration(seconds: 2),
+    duration: ArchiveMotion.enter,
     vsync: this,
   );
 
   late final Animation<double> _animation = CurvedAnimation(
     parent: _controller,
-    curve: Curves.easeIn,
+    curve: ArchiveMotion.ease,
   );
 
   @override
@@ -55,81 +47,51 @@ class _DetailBannerState extends ConsumerState<DetailBanner>
   @override
   Widget build(BuildContext context) {
     final details = widget.details;
-    // 背景图：优先 animeId 对应 bannerImage，回退 detail.image
-    final imageUrl = (widget.bannerImage != null && widget.bannerImage!.isNotEmpty)
+    final tone = ArchiveTone.of(context);
+    final imageUrl =
+        (widget.bannerImage != null && widget.bannerImage!.isNotEmpty)
         ? widget.bannerImage!
         : details.image;
-    final imageHeight = widget.height;
-    final titleBottom = imageHeight * 0.12 + 12;
 
-    return Padding(
-      padding: const EdgeInsets.only(left: 8.0, right: 8),
-      child: SizedBox(
-        height: imageHeight,
-        width: double.infinity,
-        child: Stack(
-          children: [
-            Align(
-              alignment: Alignment.topCenter,
-              child: FadeTransition(
-                opacity: _animation,
-                child: CachedNetworkImage(
-                  imageUrl: imageUrl,
-                  alignment: Alignment.topCenter,
-                  fit: BoxFit.cover,
-                  height: imageHeight,
-                  width: double.infinity,
-                  placeholder: (context, url) => const ColoredBox(
-                    color: buttonGrey,
-                  ),
-                  errorWidget: (context, url, error) => const ColoredBox(
-                    color: buttonGrey,
-                  ),
-                ),
+    return SizedBox(
+      height: widget.height,
+      width: double.infinity,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          ColoredBox(
+            color: tone.raised,
+            child: FadeTransition(
+              opacity: _animation,
+              child: CachedNetworkImage(
+                imageUrl: imageUrl,
+                alignment: Alignment.topCenter,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => ColoredBox(color: tone.raised),
+                errorWidget: (context, url, error) =>
+                    ColoredBox(color: tone.raised),
               ),
             ),
-            // 渐进色：上透明 → 下加深，衔接深色面板
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      searchBarBackground.withValues(alpha: 0),
-                      searchBarBackground.withValues(alpha: 0.7),
-                      searchBarBackground,
-                    ],
-                    stops: const [0.0, 0.4, 0.75, 1.0],
-                  ),
-                ),
-              ),
-            ),
-            Align(
-              alignment: Alignment.bottomLeft,
-              child: Padding(
-                padding: EdgeInsets.only(left: 24.0, bottom: titleBottom),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      details.displayTitle,
-                      style: Theme.of(context).textTheme.headlineLarge,
-                    ),
-                    addVerticalSpace(4),
-                    Text(
-                      details.year != null ? '${details.year}' : '',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
+          ),
+          // 向下淡入纸色，衔接正文；顶部留一层极淡纸纱压住过亮的图
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    tone.pageEnd.withValues(alpha: 0.10),
+                    tone.pageEnd.withValues(alpha: 0.02),
+                    tone.pageEnd.withValues(alpha: 0.72),
+                    tone.pageEnd,
                   ],
+                  stops: const [0.0, 0.34, 0.72, 1.0],
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

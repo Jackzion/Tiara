@@ -65,11 +65,11 @@ class AnimeDetailController extends _$AnimeDetailController {
       nameJa = anime.titleJapanese;
       nameCn = anime.title;
     } else {
-      nameJa = animeDetails?.titleJapanese;
-      nameCn = animeDetails?.title;
+      nameJa = animeDetails.titleJapanese;
+      nameCn = animeDetails.title;
     }
 
-    final isBook = animeDetails?.isBook ?? false;
+    final isBook = animeDetails.isBook;
 
     // 并行加载；书籍跳过 PV（AniList 是动画向，必空）。
     final trailersFuture = isBook
