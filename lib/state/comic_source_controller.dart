@@ -98,7 +98,7 @@ class ComicSourceController extends _$ComicSourceController {
         status: matches.isEmpty
             ? ComicSourceRowStatus.empty
             : ComicSourceRowStatus.success,
-        matches: matches,
+        matches: matches.take(3).toList(),
       );
     } catch (e) {
       // 单条失败不阻塞其它源
