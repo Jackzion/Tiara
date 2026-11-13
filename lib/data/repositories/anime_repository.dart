@@ -4,7 +4,6 @@ import 'package:lumberdash/lumberdash.dart';
 import 'package:movies/data/api/anilist_api_service.dart';
 import 'package:movies/data/api/bangumi_api_service.dart';
 import 'package:movies/data/database/models/database_interface.dart';
-import 'package:movies/data/database/models/database_models.dart';
 import 'package:movies/data/models/anime.dart';
 import 'package:movies/data/models/anime_character.dart';
 import 'package:movies/data/models/anime_details.dart';

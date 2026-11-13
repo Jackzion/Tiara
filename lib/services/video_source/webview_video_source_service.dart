@@ -94,7 +94,7 @@ class WebviewVideoSourceService{
     // 监听 m3u8 事件
     _subscriptions.add(_webview!.onM3USourceLoaded.listen((data) {
       // onData
-      final url = (data['url'] ?? '') as String;
+      final url = (data['url'] ?? '');
       if(url.isEmpty){
         return;
       }
@@ -104,7 +104,7 @@ class WebviewVideoSourceService{
     // 监听 video 事件
     _subscriptions.add(_webview!.onVideoSourceLoaded.listen((data) {
       // onData
-      final url = (data['url'] ?? '') as String;
+      final url = (data['url'] ?? '');
       if(url.isEmpty){
         return;
       }

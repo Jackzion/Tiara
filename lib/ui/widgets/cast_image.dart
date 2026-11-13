@@ -15,7 +15,6 @@ class CastImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // TODO Add widgets
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,

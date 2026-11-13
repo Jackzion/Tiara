@@ -231,7 +231,7 @@ class _ComicSourceSheetState extends ConsumerState<ComicSourceSheet> {
                   width: 36,
                   height: 48,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) =>
+                  errorBuilder: (_, _, _) =>
                       const Icon(Icons.broken_image, color: posterBorder),
                 )
               : const Icon(Icons.menu_book, color: posterBorder),

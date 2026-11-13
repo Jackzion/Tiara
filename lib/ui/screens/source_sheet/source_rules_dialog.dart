@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/src/widgets/framework.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:movies/data/models/source_rule.dart';
 import 'package:movies/providers.dart';
@@ -47,7 +46,7 @@ class _SourceRulesDialogState extends ConsumerState<SourceRulesDialog> {
                   )
                 : ListView.separated(
                     itemCount: rules.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    separatorBuilder: (_, _) => const Divider(height: 1),
                     itemBuilder: (context, index) {
                       final rule = rules[index];
                       return ListTile(

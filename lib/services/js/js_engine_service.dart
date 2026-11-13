@@ -9,7 +9,7 @@ import 'package:movies/services/js/host_convert.dart';
 import 'package:movies/services/js/host_network.dart';
 
 /// QuickJS 引擎服务（应用级单例，keepAlive——引擎启动成本高）
-/// 装载链：init.js → 规则 js → ComicSource.sources.<key>
+/// 装载链：init.js → 规则 js → ComicSource.sources.key
 /// JS 一切 Host API 经 init.js sendMessage 落到 [_messageReceiver]
 class JsEngineService {
   JsEngineService({required this.hostNetwork, required this.hostConvert});

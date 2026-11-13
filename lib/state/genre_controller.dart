@@ -135,7 +135,7 @@ class GenreController extends _$GenreController {
       );
     }
     // set type filter
-    if (request.types != null && request.types.isNotEmpty) {
+    if (request.types.isNotEmpty) {
       pageState = pageState.copyWith(typeFilter: _filterOfType(request.types));
     }
     state = AsyncData(pageState);
@@ -214,6 +214,7 @@ class GenreController extends _$GenreController {
           query,
           1,
           selectedTags.isEmpty ? null : selectedTags,
+          types: pageState.typeFilter.types,
         );
     if (!ref.mounted) {
       return true;
@@ -224,7 +225,7 @@ class GenreController extends _$GenreController {
     return true;
   }
 
-  /// 把 List<int> 映回枚举：空列表→all，[1]→book，[2]→anime
+  /// 把 List 映回枚举：空列表→all，[1]→book，[2]→anime
   SubjectTypeFilter _filterOfType(List<int> types) {
     if (types.isEmpty) {
       return SubjectTypeFilter.all;

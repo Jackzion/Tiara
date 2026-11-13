@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/physics.dart';
 
 /// 纸与档案（Paper & Archive）设计令牌。
 /// 规则：内容永远是纸（实心 + 发丝线），玻璃只做导航与控件。

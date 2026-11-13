@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:movies/services/video_source/video_source.dart';
 import 'package:movies/services/video_source/webview_video_source_service.dart';
 import 'package:webview_windows/webview_windows.dart';
 
