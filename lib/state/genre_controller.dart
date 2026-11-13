@@ -30,7 +30,8 @@ class GenrePageState {
     this.keyword = '',
     this.externalTags = const [],
     this.typeFilter = SubjectTypeFilter.all,
-    this.offset = 0,
+    this.page = 1,
+    this.total = 0,
   });
 
   /// 类型 chip 状态列表
@@ -57,8 +58,9 @@ class GenrePageState {
       if (state.isSelected) state.genre.name,
   ];
 
-  /// pageIndex - offset
-  final int offset;
+  /// （pageIndex - 1）* 10 -> offset
+  final int page;
+  final int total;
 
   GenrePageState copyWith({
     List<GenreState>? genreStates,
@@ -67,7 +69,8 @@ class GenrePageState {
     String? keyword,
     List<String>? externalTags,
     SubjectTypeFilter? typeFilter,
-    int? offset,
+    int? page,
+    int? total,
   }) {
     return GenrePageState(
       genreStates: genreStates ?? this.genreStates,
@@ -76,7 +79,8 @@ class GenrePageState {
       keyword: keyword ?? this.keyword,
       externalTags: externalTags ?? this.externalTags,
       typeFilter: typeFilter ?? this.typeFilter,
-      offset: offset ?? this.offset,
+      page: page ?? this.page,
+      total: total ?? this.total,
     );
   }
 }
@@ -165,8 +169,8 @@ class GenreController extends _$GenreController {
   }
 
   /// update the offset
-  Future<bool> setOffset(int offset) async {
-    state = AsyncData(state.value!.copyWith(offset: offset));
+  Future<bool> setPage(int page) async {
+    state = AsyncData(state.value!.copyWith(page: page));
     return search();
   }
 
@@ -206,6 +210,7 @@ class GenreController extends _$GenreController {
   Future<bool> search() async {
     final pageState = state.value!;
     final query = pageState.keyword.trim();
+    final page = pageState.page;
     final selectedTags = <String>[];
 
     void addTag(String tag) {
@@ -226,11 +231,11 @@ class GenreController extends _$GenreController {
       return false;
     }
     // 搜索动漫
-    final animeList = await ref
+    final searchResult = await ref
         .read(animeRepositoryProvider)
         .searchAnimes(
           query,
-          1,
+          page,
           selectedTags.isEmpty ? null : selectedTags,
           types: pageState.typeFilter.types,
         );
@@ -238,7 +243,10 @@ class GenreController extends _$GenreController {
       return true;
     }
     state = AsyncData(
-      pageState.copyWith(currentAnimeList: animeList ?? const []),
+      pageState.copyWith(
+        currentAnimeList: searchResult?.animeList ?? const [],
+        total: searchResult?.total ?? 0,
+      ),
     );
     return true;
   }

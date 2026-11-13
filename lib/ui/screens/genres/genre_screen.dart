@@ -171,12 +171,12 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
                       ),
                       const SizedBox(height: 8),
                       ArchivePager(
-                        page: pageState.offset,
-                        totalPages: 10,
-                        onPageChanged: (int offset){
+                        page: pageState.page,
+                        totalPages: (pageState.total / 10).ceil(),
+                        onPageChanged: (int page){
                           ref
                               .read(genreControllerProvider.notifier)
-                              .setOffset(offset);
+                              .setPage(page);
                         },
                       ),
                     ],

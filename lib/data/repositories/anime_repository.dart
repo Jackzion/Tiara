@@ -218,7 +218,7 @@ class AnimeRepository {
   }
 
   /// 搜索动漫
-  Future<List<Anime>?> searchAnimes(
+  Future<BangumiSearchResult?> searchAnimes(
     String query,
     int page,
     List<String>? tags, {
@@ -229,11 +229,14 @@ class AnimeRepository {
         keyword: query,
         limit: 10,
         tags: tags,
-        offset: (page - 1) * 10,
+        offset: page * 10,
         types: types,
       );
       if (response.statusCode == 200) {
-        return _registerAll(parseSearchResults(response.data));
+        return BangumiSearchResult(
+          response.data['total'] as int,
+          _registerAll(parseSearchResults(response.data)),
+        );
       }
       logError('Failed to search anime: ${response.statusCode}');
       return null;
@@ -472,3 +475,11 @@ class AnimeRepository {
 
 /// 补充数据缓存的本地存储键
 const String _extrasKey = 'AniListExtrasCache';
+
+/// 搜索条目结果
+class BangumiSearchResult {
+  final int total;
+  final List<Anime> animeList;
+
+  BangumiSearchResult(this.total, this.animeList);
+}
