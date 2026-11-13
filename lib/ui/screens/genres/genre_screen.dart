@@ -36,13 +36,13 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
     // 数据层就绪（标签预热完成）后才渲染
     final dataReadyAsync = ref.watch(dataReadyProvider);
     return dataReadyAsync.when(
-      error: (e, st) => Text(e.toString()),
+      error: (e, st) => ArchiveLoadError(message: e.toString()),
       loading: () => const NotReady(),
       data: (_) {
         // 分类页状态（chip 选中 + 搜索结果），controller 状态变化自动 rebuild
         final genreAsync = ref.watch(genreControllerProvider);
         return genreAsync.when(
-          error: (e, st) => Text(e.toString()),
+          error: (e, st) => ArchiveLoadError(message: e.toString()),
           loading: () => const NotReady(),
           data: buildScreen,
         );

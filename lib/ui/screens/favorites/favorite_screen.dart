@@ -25,7 +25,7 @@ class _FavoriteScreenState extends ConsumerState<FavoriteScreen> {
   Widget build(BuildContext context) {
     final dataReadyAsync = ref.watch(dataReadyProvider);
     return dataReadyAsync.when(
-      error: (e, st) => Text(e.toString()),
+      error: (e, st) => ArchiveLoadError(message: e.toString()),
       loading: () => const NotReady(),
       data: (_) => buildScreen(),
     );
@@ -44,7 +44,7 @@ class _FavoriteScreenState extends ConsumerState<FavoriteScreen> {
             Positioned.fill(
               child: favoritesAsync.when(
                 loading: () => const NotReady(),
-                error: (e, st) => Text(e.toString()),
+                error: (e, st) => ArchiveLoadError(message: e.toString()),
                 data: (favorites) {
                   final currentFavorites = ref
                       .read(favoriteControllerProvider.notifier)

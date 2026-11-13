@@ -41,7 +41,7 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
   Widget build(BuildContext context) {
     final dataReadyAsync = ref.watch(dataReadyProvider);
     return dataReadyAsync.when(
-      error: (e, st) => Text(e.toString()),
+      error: (e, st) => ArchiveLoadError(message: e.toString()),
       loading: () => const NotReady(),
       data: (_) => buildScreen(),
     );

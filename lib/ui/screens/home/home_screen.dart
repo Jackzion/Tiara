@@ -27,7 +27,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // 数据层就绪（标签/收藏/补充缓存预热）后才渲染
     final dataReadyAsync = ref.watch(dataReadyProvider);
     return dataReadyAsync.when(
-      error: (e, st) => Text(e.toString()),
+      error: (e, st) => ArchiveLoadError(message: e.toString()),
       loading: () => const NotReady(),
       data: (_) => buildScreen(),
     );
@@ -43,7 +43,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             Positioned.fill(
               child: homeAsync.when(
                 loading: () => const NotReady(),
-                error: (e, st) => Text(e.toString()),
+                error: (e, st) => ArchiveLoadError(message: e.toString()),
                 data: (home) => SingleChildScrollView(
                   padding: archivePagePadding(context),
                   child: Column(
