@@ -20,6 +20,12 @@ class AnimeOverview extends StatefulWidget {
   /// 「开始观看」等：不带集号
   final VoidCallback? onWatchTap;
 
+  /// 宽屏两栏时为 true：
+  final bool fillHeight;
+
+  /// 简介滚动框的高度（仅 [fillHeight] 生效），约五行正文。
+  final double synopsisHeight;
+
   const AnimeOverview({
     super.key,
     required this.details,
@@ -27,6 +33,8 @@ class AnimeOverview extends StatefulWidget {
     this.onWatchTap,
     this.overlapHeight = 0,
     this.onTagTap,
+    this.fillHeight = false,
+    this.synopsisHeight = 150,
   });
 
   @override
@@ -50,17 +58,38 @@ class _AnimeOverviewState extends State<AnimeOverview> {
     final synopsisLines = _splitSynopsis(details.synopsis ?? '');
     final episodes = _episodes;
 
-    return Column(
+    final synopsisChars = synopsisLines.fold<int>(0, (sum, line) => sum + line.length);
+
+    Widget synopsisBody() => Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final line in synopsisLines) ...[
+          _DescText(line),
+          const SizedBox(height: 10),
+        ],
+      ],
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: widget.fillHeight ? MainAxisSize.max : MainAxisSize.min,
       children: [
         if (synopsisLines.isNotEmpty) ...[
           const ArchiveSection(title: '剧情简介', code: '01 / SYNOPSIS'),
           const SizedBox(height: 12),
-          for (final line in synopsisLines) ...[
-            _DescText(line),
-            const SizedBox(height: 10),
-          ],
+          // 只有剧情简介自己有滚动框：内容长就在块内滚，页面不被拉长。
+          // 短简介不套框，避免留出一片空白。
+          if (widget.fillHeight && synopsisChars > 200)
+            SizedBox(
+              height: widget.synopsisHeight,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(right: 8),
+                child: synopsisBody(),
+              ),
+            )
+          else
+            synopsisBody(),
           const SizedBox(height: 18),
         ],
         ArchiveSection(
@@ -76,14 +105,29 @@ class _AnimeOverviewState extends State<AnimeOverview> {
         const SizedBox(height: 14),
         if (episodes > 0) _buildChapterButtons(episodes),
         if (genres.isNotEmpty) ...[
-          const SizedBox(height: 28),
-          const ArchiveSection(title: '标签', code: '03 / TAGS'),
+          // 宽屏：标签被推到栏底，与左栏元信息共底
+          if (widget.fillHeight) const Spacer() else const SizedBox(height: 28),
+          ArchiveSection(
+            title: '标签',
+            code: '03 / TAGS',
+            // 标签过多时只留一个小折叠图标；展开只是在滚动框内变长，
+            // 不会改变页面高度，两栏底边始终对齐。
+            trailing: genres.length > _tagPageSize
+                ? _ExpandIcon(
+                    expanded: _expandedTags,
+                    onTap: () => setState(() => _expandedTags = !_expandedTags),
+                  )
+                : null,
+          ),
           const SizedBox(height: 12),
           _buildTagBox(genres),
         ],
       ],
     );
   }
+
+  /// 折叠时显示的标签数
+  static const _tagPageSize = 12;
 
   Widget _buildChapterButtons(int episodes) {
     final limit = _expandedChapters || episodes <= 24 ? episodes : 24;
@@ -113,11 +157,9 @@ class _AnimeOverviewState extends State<AnimeOverview> {
   }
 
   Widget _buildTagBox(List<Genre> genres) {
-    const maxVisible = 16;
-    final visible = _expandedTags || genres.length <= maxVisible
+    final visible = _expandedTags || genres.length <= _tagPageSize
         ? genres
-        : genres.sublist(0, maxVisible);
-    final hasMore = genres.length > maxVisible;
+        : genres.sublist(0, _tagPageSize);
     final tone = ArchiveTone.of(context);
 
     return PaperPanel(
@@ -140,11 +182,6 @@ class _AnimeOverviewState extends State<AnimeOverview> {
                   count: genre.count,
                   onTap: () => widget.onTagTap?.call(genre),
                 ),
-              if (hasMore)
-                _TagPill(
-                  onTap: () => setState(() => _expandedTags = !_expandedTags),
-                  name: _expandedTags ? '收起' : '更多 +',
-                ),
             ],
           ),
         ],
@@ -160,6 +197,47 @@ class _AnimeOverviewState extends State<AnimeOverview> {
         .map((s) => s.trim())
         .where((s) => s.isNotEmpty)
         .toList();
+  }
+}
+
+/// 区块头右侧的小折叠图标：展开 / 收起剩余的标签。
+class _ExpandIcon extends StatelessWidget {
+  const _ExpandIcon({required this.expanded, required this.onTap});
+
+  final bool expanded;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = ArchiveTone.of(context);
+    return Semantics(
+      button: true,
+      label: expanded ? '收起标签' : '展开全部标签',
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: tone.milk,
+              borderRadius: BorderRadius.circular(ArchiveGeometry.coverRadius),
+              border: Border.all(
+                color: tone.hairline,
+                width: ArchiveGeometry.hairlineWidth,
+              ),
+            ),
+            child: Icon(
+              expanded ? Icons.unfold_less : Icons.unfold_more,
+              size: 16,
+              color: tone.muted,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

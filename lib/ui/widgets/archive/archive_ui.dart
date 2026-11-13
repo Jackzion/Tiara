@@ -17,15 +17,17 @@ import 'package:movies/ui/theme/archive_tokens.dart';
 /// 等宽档案编号。`WK-00001`、`01 / TRENDING`、`01 / 04` 都用它。
 class ArchiveCode extends StatelessWidget {
   const ArchiveCode(
-    this.text, {
+    this.text, {  
     super.key,
     this.inverse = false,
     this.color,
+    this.fontSize,
   });
 
   final String text;
   final bool inverse;
   final Color? color;
+  final double? fontSize;
 
   @override
   Widget build(BuildContext context) {
@@ -37,6 +39,7 @@ class ArchiveCode extends StatelessWidget {
       textScaler: TextScaler.noScaling,
       style: ArchiveType.code.copyWith(
         color: color ?? (inverse ? tone.surface : tone.muted),
+        fontSize: fontSize
       ),
     );
     if (!inverse) return label;

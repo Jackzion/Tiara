@@ -47,7 +47,7 @@ class GenreSection extends StatelessWidget {
           _panel('题材', [
             _tag(
               label: '全部',
-              active: !AnimeRepository.genreTagNames.any((tag) => genreStates.any((state) => state.genre.name == tag && state.isSelected)),
+              active: !AnimeRepository.genreTagNames.any((tag) => genreStates.any((state) => state.genre.name == tag && state.isSelected)) && externalTags.isEmpty,
               onTap: () => _clearSelected(AnimeRepository.genreTagNames),
             ),
             for (final tag in extraSearchTags)

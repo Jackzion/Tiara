@@ -48,7 +48,9 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
   }
 
   Widget buildScreen() {
-    final detailAsync = ref.watch(animeDetailControllerProvider(widget.animeId));
+    final detailAsync = ref.watch(
+      animeDetailControllerProvider(widget.animeId),
+    );
     return detailAsync.when(
       loading: () => const NotReady(),
       error: (e, st) {
@@ -84,9 +86,7 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
       ),
       actions: [
         ArchiveIconButton(
-          icon: detailState.isFavorite
-              ? Icons.favorite
-              : Icons.favorite_border,
+          icon: detailState.isFavorite ? Icons.favorite : Icons.favorite_border,
           label: detailState.isFavorite ? '取消收藏' : '收藏',
           filled: detailState.isFavorite,
           onPressed: () => ref
@@ -207,28 +207,7 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
         ),
         if (details.score != null) ...[
           const SizedBox(width: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: tone.ink,
-              borderRadius: BorderRadius.circular(2),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.star_rounded, size: 12, color: tone.surface),
-                const SizedBox(width: 5),
-                Text(
-                  details.score!.toStringAsFixed(1),
-                  style: ArchiveType.code.copyWith(
-                    fontSize: 11,
-                    color: tone.surface,
-                    letterSpacing: 0.6,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          ArchiveCode('${details.score}', fontSize: 33),
         ],
       ],
     );
@@ -239,9 +218,15 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= 780;
 
-    final posterAndMeta = _buildPosterColumn(details, isWide: isWide);
+    final posterAndMeta = _buildPosterColumn(
+      details,
+      isWide: isWide,
+      stretch: isWide,
+    );
     final overview = AnimeOverview(
       details: details,
+      // 宽屏两栏：标签贴到栏底，与左栏元信息共底
+      fillHeight: isWide,
       onEpisodeTap: (ep) => _openSourceSheet(details, preferredEpisode: ep),
       onWatchTap: () => details.isBook
           ? _openComicSourceSheet(details)
@@ -265,22 +250,31 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
       );
     }
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(width: 260, child: posterAndMeta),
-        const SizedBox(width: 36),
-        Expanded(child: overview),
-      ],
+    // 栏高 = 两栏较高者；左栏用 Spacer 把元信息压到底，右栏同样把标签压到底，
+    // 于是「标签末行」与「收藏数」共底。简介块是定高内部滚动框，所以右栏不会
+    // 被超长简介拉长；展开标签时两栏一起变高，底边依然对齐。
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(width: 260, child: posterAndMeta),
+          const SizedBox(width: 36),
+          Expanded(child: overview),
+        ],
+      ),
     );
   }
 
-  Widget _buildPosterColumn(AnimeDetails details, {required bool isWide}) {
+  Widget _buildPosterColumn(
+    AnimeDetails details, {
+    required bool isWide,
+    bool stretch = false,
+  }) {
     final posterWidth = isWide ? 260.0 : 200.0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: stretch ? MainAxisSize.max : MainAxisSize.min,
       children: [
         SizedBox(
           width: posterWidth,
@@ -290,7 +284,8 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
             heroTag: widget.heroTag,
           ),
         ),
-        const SizedBox(height: 16),
+        // 撑满栏高时把元信息推到底部，与右栏标签共底
+        if (stretch) const Spacer() else const SizedBox(height: 16),
         SizedBox(
           width: isWide ? 260 : double.infinity,
           child: Column(
@@ -318,9 +313,8 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
     );
   }
 
-  static String _compactNumber(int value) => value >= 10000
-      ? '${(value / 10000).toStringAsFixed(1)} 万'
-      : '$value';
+  static String _compactNumber(int value) =>
+      value >= 10000 ? '${(value / 10000).toStringAsFixed(1)} 万' : '$value';
 
   /// 打开视频源选择器
   Future<void> _openSourceSheet(
@@ -331,9 +325,8 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
         ? details.title!
         : (details.titleJapanese ?? '');
     if (keyword.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('缺少可用的搜索关键词')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('缺少可用的搜索关键词')));
       return;
     }
     final playContext = await showSourceSheet(
@@ -358,9 +351,8 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
         ? details.title!
         : (details.titleJapanese ?? '');
     if (keyword.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('缺少可用的搜索关键词')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('缺少可用的搜索关键词')));
       return;
     }
     final selection = await showComicSourceSheet(
@@ -405,10 +397,7 @@ class _MetaLine extends StatelessWidget {
         Expanded(
           child: Text(
             value,
-            style: ArchiveType.body.copyWith(
-              fontSize: 13,
-              color: tone.ink,
-            ),
+            style: ArchiveType.body.copyWith(fontSize: 13, color: tone.ink),
           ),
         ),
       ],
