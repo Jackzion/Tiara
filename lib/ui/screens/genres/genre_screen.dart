@@ -163,6 +163,22 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
                           ],
                         ),
                       ),
+                      const SizedBox(height: 8),
+                      Divider(
+                        height: 1,
+                        thickness: ArchiveGeometry.dividerWidth,
+                        color: tone.hairline,
+                      ),
+                      const SizedBox(height: 8),
+                      ArchivePager(
+                        page: pageState.offset,
+                        totalPages: 10,
+                        onPageChanged: (int offset){
+                          ref
+                              .read(genreControllerProvider.notifier)
+                              .setOffset(offset);
+                        },
+                      ),
                     ],
                   ),
                 ),
@@ -204,10 +220,7 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
           AnimeViewMode.list,
           AnimeViewMode.detail,
           AnimeViewMode.grid,
-        ]) ...[
-          _viewButton(mode),
-          addHorizontalSpace(3),
-        ],
+        ]) ...[_viewButton(mode), addHorizontalSpace(3)],
       ],
     );
   }
@@ -321,18 +334,10 @@ class _GenreScreenState extends ConsumerState<GenreScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
-                children: [
-                  bar(6, 4.5),
-                  addHorizontalSpace(gapV),
-                  bar(6, 4.5),
-                ],
+                children: [bar(6, 4.5), addHorizontalSpace(gapV), bar(6, 4.5)],
               ),
               Row(
-                children: [
-                  bar(6, 4.5),
-                  addHorizontalSpace(gapV),
-                  bar(6, 4.5),
-                ],
+                children: [bar(6, 4.5), addHorizontalSpace(gapV), bar(6, 4.5)],
               ),
             ],
           ),

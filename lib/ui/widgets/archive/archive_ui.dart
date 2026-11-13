@@ -4,6 +4,7 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 
 import 'package:movies/ui/theme/archive_tokens.dart';
+import 'package:movies/utils/utils.dart';
 
 /// 「纸与档案」公共控件库。
 ///
@@ -1044,4 +1045,91 @@ class ArchiveDivider extends StatelessWidget {
       color: ArchiveTone.of(context).hairline,
     ),
   );
+}
+
+/// 分页器：显示当前页码和总页数，可点击切换。
+class ArchivePager extends StatelessWidget {
+  const ArchivePager({
+    super.key,
+    required this.page,
+    required this.totalPages,
+    required this.onPageChanged,
+    this.totalEntries,
+  });
+
+  /// 当前页（0-based）
+  final int page;
+
+  /// 总页数（>= 1）
+  final int totalPages;
+
+  /// 总条目数，传入时右侧显示 `NNN ENTRIES`
+  final int? totalEntries;
+
+  final ValueChanged<int> onPageChanged;
+
+  String _pad2(int v) => v.toString().padLeft(2, '0');
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = ArchiveTone.of(context);
+    final pages = totalPages < 1 ? 1 : totalPages;
+    final current = page.clamp(0, pages - 1);
+    final canPrev = current > 0;
+    final canNext = current < pages - 1;
+
+    Widget nav({
+      required String label,
+      required bool enabled,
+      required VoidCallback onTap,
+    }) {
+      return Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(ArchiveGeometry.coverRadius),
+        child: InkWell(
+          onTap: enabled ? onTap : null,
+          borderRadius: BorderRadius.circular(ArchiveGeometry.coverRadius),
+          hoverColor: tone.raisedHigh,
+          splashFactory: NoSplash.splashFactory,
+          highlightColor: Colors.transparent,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+            child: Text(
+              label,
+              style: ArchiveType.body.copyWith(
+                fontSize: 12,
+                height: 1,
+                fontWeight: FontWeight.w600,
+                color: enabled ? tone.muted : tone.hairline,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        nav(
+          label: 'PREV',
+          enabled: canPrev,
+          onTap: () => onPageChanged(current - 1),
+        ),
+        addHorizontalSpace(10),
+        ArchiveCode('${_pad2(current + 1)} / ${_pad2(pages)}'),
+        addHorizontalSpace(10),
+        nav(
+          label: 'NEXT',
+          enabled: canNext,
+          onTap: () => onPageChanged(current + 1),
+        ),
+        if (totalEntries != null) ...[
+          const Spacer(),
+          ArchiveCode(
+            '${totalEntries!.toString().padLeft(3, '0')} ENTRIES',
+          ),
+        ],
+      ],
+    );
+  }
 }

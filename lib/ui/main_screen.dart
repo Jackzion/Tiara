@@ -40,7 +40,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
   static const _railDestinations = <NavigationRailDestination>[
     NavigationRailDestination(icon: Icon(Icons.home), label: Text('Home')),
-    NavigationRailDestination(icon: Icon(Symbols.genres), label: Text('Genre')),
+    NavigationRailDestination(icon: Icon(Icons.tag), label: Text('Genre')),
     NavigationRailDestination(
       icon: Icon(Icons.favorite),
       label: Text('Favorites'),
