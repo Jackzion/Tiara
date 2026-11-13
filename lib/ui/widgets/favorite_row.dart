@@ -59,7 +59,7 @@ class FavoriteRow extends StatelessWidget {
                             )
                           : const Icon(
                               Icons.favorite_border,
-                              color: Colors.white,
+                              color: ArchivePalette.ink,
                             ),
                     ),
                   ),

@@ -3,17 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:movies/data/models/anime.dart';
 import 'package:movies/providers.dart';
+import 'package:movies/ui/theme/archive_tokens.dart';
 import 'package:movies/utils/utils.dart';
-import 'package:movies/ui/theme/theme.dart';
 
 /// 动漫类型枚举，用于区分不同分类的动漫
 /// 用于生成唯一的 Hero 动画标签
-enum AnimeType {
-  trending,
-  popular,
-  topRated,
-  nowPlaying,
-}
+enum AnimeType { trending, popular, topRated, nowPlaying }
 
 /// 悬停变形动画时长
 const morphDuration = Duration(milliseconds: 250);
@@ -30,20 +25,14 @@ double posterHeightFor(double width) => width * 3 / 2 + posterCaptionHeight;
 /// 横幅卡在给定宽度下的高度（16:9 横幅 + 文案）
 double bannerHeightFor(double width) => width * 9 / 16 + bannerCaptionHeight;
 
-/// 动漫卡片展示组件
-/// 默认为竖版海报卡（2:3 封面 + 评分 + 标题/副标题）
-/// [expanded] 为 true 时展示横幅卡（16:9 bannerImage + 标签 + 操作按钮），尺寸由父级给定
+/// 动漫卡片：竖版海报（默认）+ 横幅（展开）。
+///
+/// 纸与档案：封面 3px 圆角 + 0.7 发丝线，评分是墨底 mono 编号，
+/// 没有阴影、没有发光；文案区 14/w600 标题 + 11 元信息。
 class AnimeWidget extends ConsumerStatefulWidget {
-  /// 动漫数据对象
   final Anime anime;
-
-  /// 点击回调函数
   final OnAnimeTap onAnimeTap;
-
-  /// 动漫类型，用于生成唯一的 Hero 动画标签
   final AnimeType animeType;
-
-  /// 是否为展开态（横幅卡）。展开尺寸由父级布局决定
   final bool expanded;
 
   const AnimeWidget({
@@ -59,15 +48,12 @@ class AnimeWidget extends ConsumerStatefulWidget {
 }
 
 class _AnimeWidgetState extends ConsumerState<AnimeWidget> {
-  /// 唯一的 Hero 动画标签，由动漫地址和类型组合生成
   late String uniqueHeroTag;
 
   @override
   void initState() {
     super.initState();
-    // 根据动漫地址和类型生成唯一的 Hero 标签
     uniqueHeroTag = widget.anime.imageUrl + widget.animeType.name;
-    // 按需加载宽幅横幅（AniList，带缓存），供展开态使用
     ref.read(animeRepositoryProvider).ensureExtras(widget.anime).then((_) {
       if (mounted) {
         setState(() {});
@@ -79,20 +65,15 @@ class _AnimeWidgetState extends ConsumerState<AnimeWidget> {
   Widget build(BuildContext context) {
     final anime = widget.anime;
     return GestureDetector(
-      onTap: () {
-        // Hero 标签随路由参数传给详情页，配对 Hero 动画
-        widget.onAnimeTap(anime.animeId, uniqueHeroTag);
-      },
+      onTap: () => widget.onAnimeTap(anime.animeId, uniqueHeroTag),
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // 海报卡：默认态，展开时淡出
           AnimatedOpacity(
             opacity: widget.expanded ? 0 : 1,
             duration: morphDuration,
             child: buildPosterCard(context, anime),
           ),
-          // 横幅卡：展开时淡入，尺寸随父级 2 列宽等比放大
           IgnorePointer(
             ignoring: !widget.expanded,
             child: AnimatedOpacity(
@@ -106,9 +87,31 @@ class _AnimeWidgetState extends ConsumerState<AnimeWidget> {
     );
   }
 
-  /// 竖版海报卡（默认态）：2:3 封面 + 评分角标 + 标题/副标题
-  /// 图片区用 Expanded 吃掉剩余高度，避免尺寸过渡时 Column 溢出
+  /// 封面：3px 圆角 + 0.7px 发丝线，裁切在边框内。
+  Widget buildCover(String imageUrl, {BorderRadius? radius}) {
+    final tone = ArchiveTone.of(context);
+    final r = radius ?? BorderRadius.circular(ArchiveGeometry.coverRadius);
+    return Container(
+      decoration: BoxDecoration(
+        color: tone.raised,
+        borderRadius: r,
+        border: Border.all(
+          color: tone.hairline,
+          width: ArchiveGeometry.hairlineWidth,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: CachedNetworkImage(
+        imageUrl: imageUrl,
+        fit: BoxFit.cover,
+        errorWidget: (context, url, error) => buildFallback(context),
+      ),
+    );
+  }
+
+  /// 竖版海报卡（默认态）
   Widget buildPosterCard(BuildContext context, Anime anime) {
+    final tone = ArchiveTone.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -116,22 +119,11 @@ class _AnimeWidgetState extends ConsumerState<AnimeWidget> {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Hero(
-                tag: uniqueHeroTag,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: CachedNetworkImage(
-                    imageUrl: anime.image,
-                    fit: BoxFit.cover,
-                    errorWidget: (context, url, error) =>
-                        buildFallback(context),
-                  ),
-                ),
-              ),
+              Hero(tag: uniqueHeroTag, child: buildCover(anime.image)),
               if (anime.score != null)
                 Positioned(
-                  right: 8,
-                  bottom: 8,
+                  right: 6,
+                  bottom: 6,
                   child: buildScoreBadge(context),
                 ),
             ],
@@ -145,20 +137,17 @@ class _AnimeWidgetState extends ConsumerState<AnimeWidget> {
             children: [
               Text(
                 anime.title ?? '',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(fontWeight: FontWeight.w500),
+                style: ArchiveType.title.copyWith(color: tone.ink),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              addVerticalSpace(2),
+              const SizedBox(height: 3),
               Text(
                 posterSubtitleOf(anime),
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: posterBorder),
+                style: ArchiveType.micro.copyWith(
+                  color: tone.muted,
+                  height: 1.45,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -169,20 +158,19 @@ class _AnimeWidgetState extends ConsumerState<AnimeWidget> {
     );
   }
 
-  /// 横幅卡（展开态）：16:9 横幅 + 评分/标签/操作按钮 + 标题/副标题
-  /// 图片区用 Expanded 吃掉剩余高度，避免操作按钮随文案区一起把 Column 挤爆
+  /// 横幅卡（展开态）：纸面板包住 16:9 横幅
   Widget buildBannerCard(BuildContext context, Anime anime) {
+    final tone = ArchiveTone.of(context);
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x80000000),
-            blurRadius: 24,
-            offset: Offset(0, 12),
-          ),
-        ],
+        color: tone.surface,
+        borderRadius: BorderRadius.circular(ArchiveGeometry.panelRadius),
+        border: Border.all(
+          color: tone.hairline,
+          width: ArchiveGeometry.hairlineWidth,
+        ),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -190,14 +178,9 @@ class _AnimeWidgetState extends ConsumerState<AnimeWidget> {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: CachedNetworkImage(
-                    imageUrl: anime.bannerImage ?? anime.image,
-                    fit: BoxFit.cover,
-                    errorWidget: (context, url, error) =>
-                        buildFallback(context),
-                  ),
+                buildCover(
+                  anime.bannerImage ?? anime.image,
+                  radius: BorderRadius.zero,
                 ),
                 if (anime.score != null)
                   Positioned(
@@ -220,7 +203,7 @@ class _AnimeWidgetState extends ConsumerState<AnimeWidget> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
             child: SizedBox(
               height: posterCaptionHeight,
               child: Column(
@@ -229,20 +212,20 @@ class _AnimeWidgetState extends ConsumerState<AnimeWidget> {
                 children: [
                   Text(
                     anime.title ?? '',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.copyWith(fontWeight: FontWeight.w500),
+                    style: ArchiveType.title.copyWith(
+                      fontSize: 15,
+                      color: tone.ink,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  addVerticalSpace(2),
+                  const SizedBox(height: 3),
                   Text(
                     bannerSubtitleOf(anime),
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: posterBorder),
+                    style: ArchiveType.micro.copyWith(
+                      color: tone.muted,
+                      height: 1.45,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -255,7 +238,6 @@ class _AnimeWidgetState extends ConsumerState<AnimeWidget> {
     );
   }
 
-  /// 海报卡副标题：优先简介，其次年份与放送形式
   String posterSubtitleOf(Anime anime) {
     final synopsis = anime.synopsis ?? '';
     if (synopsis.isNotEmpty) {
@@ -264,7 +246,6 @@ class _AnimeWidgetState extends ConsumerState<AnimeWidget> {
     return metaOf(anime);
   }
 
-  /// 横幅卡副标题：优先日文原名，其次年份与放送形式
   String bannerSubtitleOf(Anime anime) {
     final titleJa = anime.titleJapanese ?? '';
     if (titleJa.isNotEmpty) {
@@ -273,7 +254,6 @@ class _AnimeWidgetState extends ConsumerState<AnimeWidget> {
     return metaOf(anime);
   }
 
-  /// 年份与放送形式
   String metaOf(Anime anime) {
     final meta = <String>[
       if (anime.aired != null) '${anime.aired!.year}',
@@ -282,7 +262,6 @@ class _AnimeWidgetState extends ConsumerState<AnimeWidget> {
     return meta.join(' · ');
   }
 
-  /// 图片上的标签（放送形式/话数/年份）
   List<String> tagsOf(Anime anime) {
     return [
       if (anime.type != null && anime.type!.isNotEmpty) anime.type!,
@@ -291,23 +270,31 @@ class _AnimeWidgetState extends ConsumerState<AnimeWidget> {
     ];
   }
 
-  /// 标签行（半透明胶囊）
+  /// 标签：纸底 mono 小签，不用半透明黑影。
   Widget buildTags(BuildContext context, Anime anime) {
+    final tone = ArchiveTone.of(context);
     final tags = tagsOf(anime);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         for (var i = 0; i < tags.length; i++) ...[
-          if (i > 0) addHorizontalSpace(6),
+          if (i > 0) const SizedBox(width: 6),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
             decoration: BoxDecoration(
-              color: const Color(0x66000000),
-              borderRadius: BorderRadius.circular(4),
+              color: tone.milk.withValues(alpha: 0.90),
+              borderRadius: BorderRadius.circular(2),
+              border: Border.all(
+                color: tone.hairline,
+                width: ArchiveGeometry.hairlineWidth,
+              ),
             ),
             child: Text(
               tags[i],
-              style: Theme.of(context).textTheme.labelSmall,
+              style: ArchiveType.code.copyWith(
+                color: tone.ink,
+                letterSpacing: 0.4,
+              ),
             ),
           ),
         ],
@@ -315,90 +302,94 @@ class _AnimeWidgetState extends ConsumerState<AnimeWidget> {
     );
   }
 
-  /// 评分角标
+  /// 评分：墨底 mono，像盖章的档案号。
   Widget buildScoreBadge(BuildContext context) {
+    final tone = ArchiveTone.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
-        color: const Color(0x99000000),
-        borderRadius: BorderRadius.circular(4),
+        color: tone.ink.withValues(alpha: 0.86),
+        borderRadius: BorderRadius.circular(2),
       ),
       child: Text(
         widget.anime.score!.toStringAsFixed(1),
-        style: Theme.of(context)
-            .textTheme
-            .labelSmall
-            ?.copyWith(color: accentAmberLight),
+        style: ArchiveType.code.copyWith(
+          color: tone.milk,
+          letterSpacing: 0.4,
+        ),
       ),
     );
   }
 
-  /// 操作按钮：收藏 + 播放
+  /// 操作按钮：收藏（纸圆）+ 播放（墨圆）
   Widget buildActions(BuildContext context, Anime anime) {
-    final favoriteSelected = ref.read(favoriteRepositoryProvider).isFavorite(anime.animeId);
+    final tone = ArchiveTone.of(context);
+    final favoriteSelected = ref
+        .read(favoriteRepositoryProvider)
+        .isFavorite(anime.animeId);
+    Widget circle({
+      required IconData icon,
+      required VoidCallback onTap,
+      required bool filled,
+      Color? iconColor,
+    }) => SizedBox(
+      width: 36,
+      height: 36,
+      child: Material(
+        color: filled ? tone.ink : tone.milk,
+        shape: CircleBorder(
+          side: BorderSide(
+            color: filled ? Colors.transparent : tone.hairline,
+            width: ArchiveGeometry.hairlineWidth,
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          customBorder: const CircleBorder(),
+          splashFactory: NoSplash.splashFactory,
+          highlightColor: Colors.transparent,
+          child: Icon(
+            icon,
+            size: 18,
+            color: iconColor ?? (filled ? tone.surface : tone.ink),
+          ),
+        ),
+      ),
+    );
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // 收藏按钮
-        GestureDetector(
+        circle(
+          icon: favoriteSelected ? Icons.favorite : Icons.favorite_border,
+          filled: false,
+          iconColor: favoriteSelected ? ArchivePalette.error : tone.ink,
           onTap: () {
             ref.read(favoriteRepositoryProvider).toggleFavorite(anime);
             setState(() {});
           },
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: const BoxDecoration(
-              color: Color(0x66000000),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              favoriteSelected ? Icons.favorite : Icons.favorite_border,
-              color: favoriteSelected ? dangerRed : Colors.white,
-              size: 20,
-            ),
-          ),
         ),
-        addHorizontalSpace(8),
-        // 播放按钮（跳转详情页）
-        GestureDetector(
-          onTap: () {
-            widget.onAnimeTap(anime.animeId, uniqueHeroTag);
-          },
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: const BoxDecoration(
-              color: accentAmber,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.play_arrow_rounded,
-              color: onAccent,
-              size: 24,
-            ),
-          ),
+        const SizedBox(width: 8),
+        circle(
+          icon: Icons.play_arrow_rounded,
+          filled: true,
+          onTap: () => widget.onAnimeTap(anime.animeId, uniqueHeroTag),
         ),
       ],
     );
   }
 
-  /// 图片加载失败时的回退占位
+  /// 图片失败：纸底 + 标题，不用渐变。
   Widget buildFallback(BuildContext context) {
+    final tone = ArchiveTone.of(context);
     return Container(
-      decoration: const BoxDecoration(
-        borderRadius: BorderRadius.all(Radius.circular(8)),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [buttonGrey, surfaceBar],
-        ),
-      ),
+      color: tone.raised,
       padding: const EdgeInsets.all(20),
       alignment: Alignment.center,
       child: Text(
         widget.anime.title ?? '',
-        style: Theme.of(context).textTheme.titleSmall,
+        style: ArchiveType.meta.copyWith(color: tone.muted),
         textAlign: TextAlign.center,
         maxLines: 3,
         overflow: TextOverflow.ellipsis,

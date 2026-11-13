@@ -67,7 +67,7 @@ class GlobalSearchOverlay extends StatelessWidget {
                             behavior: HitTestBehavior.opaque,
                             onTap: controller.close,
                             child: ColoredBox(
-                              color: Colors.black.withValues(alpha: 0.55),
+                              color: ArchivePalette.scrim,
                             ),
                           ),
                         ),
@@ -85,7 +85,18 @@ class GlobalSearchOverlay extends StatelessWidget {
                                 color: open
                                     ? searchBarBackground
                                     : Colors.transparent,
-                                borderRadius: BorderRadius.circular(20),
+                                // 纸卡必须有一道发丝线，否则在浅色纱幕上几乎看不见
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(
+                                    ArchiveGeometry.panelRadius,
+                                  ),
+                                  side: BorderSide(
+                                    color: open
+                                        ? ArchivePalette.hairline
+                                        : Colors.transparent,
+                                    width: ArchiveGeometry.hairlineWidth,
+                                  ),
+                                ),
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 20,
@@ -156,7 +167,7 @@ class GlobalSearchOverlay extends StatelessWidget {
                                               SmartQuotesType.disabled,
                                           style: TextStyle(
                                             color: open
-                                                ? Colors.white
+                                                ? ArchivePalette.ink
                                                 : Colors.transparent,
                                             fontSize: 32,
                                             fontWeight: FontWeight.w600,

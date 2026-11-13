@@ -1,7 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:lumberdash/lumberdash.dart';
 import 'package:movies/data/models/anime_details.dart';
 import 'package:movies/data/models/play_context.dart';
@@ -17,20 +16,18 @@ import 'package:movies/ui/screens/anime_detail/detail_image.dart';
 import 'package:movies/ui/screens/anime_detail/trailer.dart';
 import 'package:movies/ui/screens/comic_source_sheet/comic_source_sheet.dart';
 import 'package:movies/ui/screens/source_sheet/source_sheet.dart';
+import 'package:movies/ui/theme/archive_tokens.dart';
+import 'package:movies/ui/widgets/archive/archive_ui.dart';
 import 'package:movies/ui/widgets/horiz_cast.dart';
 import 'package:movies/ui/widgets/net_error_view.dart';
 import 'package:movies/ui/widgets/not_ready.dart';
-import 'package:movies/utils/utils.dart';
-import 'package:movies/ui/theme/theme.dart';
 
-/// 动漫详情页面
-/// 顶部 bannerImage 渐进色背景；下方左完整 detail.image 海报+元信息，右章节/简介/标签
+/// 动漫详情页：图版横幅 + 档案条目（简介 / 章节 / 标签 / 预告 / 演职员）。
 @RoutePage(name: 'AnimeDetailRoute')
 class AnimeDetail extends ConsumerStatefulWidget {
   final int animeId;
 
   /// 来源页 Hero 标签（列表页点击处生成），配对海报 Hero 动画
-  /// autoRouter 会自动生成 heroTag 参数
   final String? heroTag;
 
   const AnimeDetail(this.animeId, {this.heroTag, super.key});
@@ -42,7 +39,6 @@ class AnimeDetail extends ConsumerStatefulWidget {
 class _AnimeDetailState extends ConsumerState<AnimeDetail> {
   @override
   Widget build(BuildContext context) {
-    // 数据层就绪（收藏缓存预热完成）后才渲染
     final dataReadyAsync = ref.watch(dataReadyProvider);
     return dataReadyAsync.when(
       error: (e, st) => Text(e.toString()),
@@ -52,10 +48,7 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
   }
 
   Widget buildScreen() {
-    // 详情数据（family: animeId），controller 状态变化自动 rebuild
-    final detailAsync = ref.watch(
-      animeDetailControllerProvider(widget.animeId),
-    );
+    final detailAsync = ref.watch(animeDetailControllerProvider(widget.animeId));
     return detailAsync.when(
       loading: () => const NotReady(),
       error: (e, st) {
@@ -81,89 +74,102 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
     final trailerVideos = detailState.trailerVideos;
     final characters = detailState.characters;
 
-    return SafeArea(
-      child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: searchBarBackground,
-          leading: BackButton(
-            color: Colors.white,
-            onPressed: () {
-              ref.read(appRouterProvider).maybePop();
-            },
-          ),
-          centerTitle: false,
-          title: Text(
-            'Back',
-            style: Theme.of(context).textTheme.headlineMedium,
-          ),
+    return ArchivePage(
+      title: details.displayTitle,
+      code: 'ARCHIVE / WK-${widget.animeId.toString().padLeft(5, '0')}',
+      leading: ArchiveIconButton(
+        icon: Icons.arrow_back_rounded,
+        label: '返回',
+        onPressed: () => ref.read(appRouterProvider).maybePop(),
+      ),
+      actions: [
+        ArchiveIconButton(
+          icon: detailState.isFavorite
+              ? Icons.favorite
+              : Icons.favorite_border,
+          label: detailState.isFavorite ? '取消收藏' : '收藏',
+          filled: detailState.isFavorite,
+          onPressed: () => ref
+              .read(animeDetailControllerProvider(widget.animeId).notifier)
+              .toggleFavorite(),
         ),
-        body: Container(
-          color: searchBarBackground,
+      ],
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: ArchiveGeometry.wideMaxWidth,
+          ),
           child: CustomScrollView(
             slivers: [
-              SliverList(
-                delegate: SliverChildListDelegate([
-                  // 顶部渐进色背景：图源 bannerImage（animeId 对应 AniList）
-                  DetailBanner(
-                    details: details,
-                    bannerImage: detailState.bannerImage,
-                  ),
-                  // 左完整 detail.image + 元信息；右章节/简介/标签
-                  _buildPosterAndOverview(details),
-                  ButtonRow(
-                    favoriteSelected: detailState.isFavorite,
-                    onFavoriteSelected: () {
-                      ref
-                          .read(
-                            animeDetailControllerProvider(widget.animeId)
-                                .notifier,
-                          )
-                          .toggleFavorite();
-                    },
-                  ),
-                  if (trailerVideos.isNotEmpty) ...[
-                    Padding(
-                      padding: const EdgeInsets.only(left: 16, bottom: 8),
-                      child: Text(
-                        'Trailers',
-                        style: Theme.of(context).textTheme.headlineLarge,
-                      ),
-                    ),
-                    Trailer(
-                      videos: trailerVideos,
-                      onVideoTap: (video) {
-                        final playContext = PlayContext(
-                          animeId: widget.animeId,
-                          title: details.title ?? '',
-                          detailUrl: video.videoUrl,
-                          roads: [],
-                          preferredEpisode: 1,
-                        );
-                        // 预告片：rule 为空 → VideoPage 走 youtube_explode 取流
-                        context.router.push(
-                          VideoPageRoute(
-                            animeVideo: video.youtubeId ?? '',
-                            playContext: playContext,
+              SliverToBoxAdapter(
+                child: DetailBanner(
+                  details: details,
+                  bannerImage: detailState.bannerImage,
+                ),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(
+                  ArchiveGeometry.pagePadding,
+                  0,
+                  ArchiveGeometry.pagePadding,
+                  64,
+                ),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    _buildTitleBlock(details),
+                    const SizedBox(height: 26),
+                    _buildPosterAndOverview(details),
+                    const SizedBox(height: 28),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ButtonRow(
+                            favoriteSelected: detailState.isFavorite,
+                            onFavoriteSelected: () {
+                              ref
+                                  .read(
+                                    animeDetailControllerProvider(
+                                      widget.animeId,
+                                    ).notifier,
+                                  )
+                                  .toggleFavorite();
+                            },
                           ),
-                        );
-                      },
+                        ),
+                      ],
                     ),
-                  ],
-                  if (characters.isNotEmpty) ...[
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        left: 16,
-                        bottom: 16,
-                        top: 16,
+                    if (trailerVideos.isNotEmpty) ...[
+                      const SizedBox(height: 36),
+                      const ArchiveSection(title: '预告', code: '04 / TRAILERS'),
+                      const SizedBox(height: 14),
+                      Trailer(
+                        videos: trailerVideos,
+                        onVideoTap: (video) {
+                          final playContext = PlayContext(
+                            animeId: widget.animeId,
+                            title: details.title ?? '',
+                            detailUrl: video.videoUrl,
+                            roads: [],
+                            preferredEpisode: 1,
+                          );
+                          context.router.push(
+                            VideoPageRoute(
+                              animeVideo: video.youtubeId ?? '',
+                              playContext: playContext,
+                            ),
+                          );
+                        },
                       ),
-                      child: Text(
-                        'Characters',
-                        style: Theme.of(context).textTheme.headlineLarge,
-                      ),
-                    ),
-                    HorizontalCast(characters: characters),
-                  ],
-                ]),
+                    ],
+                    if (characters.isNotEmpty) ...[
+                      const SizedBox(height: 36),
+                      const ArchiveSection(title: '演职员', code: '05 / CAST'),
+                      const SizedBox(height: 14),
+                      HorizontalCast(characters: characters),
+                    ],
+                  ]),
+                ),
               ),
             ],
           ),
@@ -172,71 +178,105 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
     );
   }
 
-  /// 左海报+元信息 / 右简介面板
-  /// 宽屏左右分栏；窄屏纵向堆叠，海报仍展示完整封面
+  /// 档案条目头：大标题 + 一行等宽元信息 + 评分章
+  Widget _buildTitleBlock(AnimeDetails details) {
+    final tone = ArchiveTone.of(context);
+    final meta = <String>[
+      'WK-${widget.animeId.toString().padLeft(5, '0')}',
+      if (details.year != null) '${details.year}',
+      if (details.type != null && details.type!.isNotEmpty) details.type!,
+      if (details.rank != null) 'RANK #${details.rank}',
+    ];
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                details.displayTitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: ArchiveType.display.copyWith(color: tone.ink),
+              ),
+              const SizedBox(height: 7),
+              ArchiveCode(meta.join('  ·  ')),
+            ],
+          ),
+        ),
+        if (details.score != null) ...[
+          const SizedBox(width: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: tone.ink,
+              borderRadius: BorderRadius.circular(2),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.star_rounded, size: 12, color: tone.surface),
+                const SizedBox(width: 5),
+                Text(
+                  details.score!.toStringAsFixed(1),
+                  style: ArchiveType.code.copyWith(
+                    fontSize: 11,
+                    color: tone.surface,
+                    letterSpacing: 0.6,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// 左海报+元信息 / 右简介等档案段落；780 以下纵向堆叠
   Widget _buildPosterAndOverview(AnimeDetails details) {
     final width = MediaQuery.of(context).size.width;
-    // 参考 CSS 在 780px 以下改为纵向
     final isWide = width >= 780;
 
     final posterAndMeta = _buildPosterColumn(details, isWide: isWide);
     final overview = AnimeOverview(
       details: details,
-      // 子组件函数外抛，能让父组件直接调用子组件交互参数典例
-      // 点章节:(1-based 集号) 回调
       onEpisodeTap: (ep) => _openSourceSheet(details, preferredEpisode: ep),
-      // 点观看:(不带集号) 回调
       onWatchTap: () => details.isBook
           ? _openComicSourceSheet(details)
           : _openSourceSheet(details, preferredEpisode: null),
-      // 点标签:(标签名称) 回调
       onTagTap: (genre) {
-        // 切换到 Genre Tab 并发起标签搜索（SearchState 请求，Genre 页消费）
         final container = ProviderScope.containerOf(context, listen: false);
         container.read(currentNavIndexProvider.notifier).goTo(1);
         container.read(searchStateProvider.notifier).addTag(genre.name);
-        // route to genres screen
         context.router.pop();
       },
     );
 
     if (!isWide) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(child: posterAndMeta),
-            addVerticalSpace(20),
-            overview,
-          ],
-        ),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(child: posterAndMeta),
+          const SizedBox(height: 24),
+          overview,
+        ],
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(40, 12, 40, 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ===== LEFT : 完整 detail.image 海报 + 元信息 =====
-          SizedBox(width: 240, child: posterAndMeta),
-          addHorizontalSpace(28),
-          // ===== RIGHT : 章节 / 简介 / 标签 =====
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: overview,
-            ),
-          ),
-        ],
-      ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(width: 260, child: posterAndMeta),
+        const SizedBox(width: 36),
+        Expanded(child: overview),
+      ],
     );
   }
 
-  /// 左侧列：完整 detail.image 海报 + 中文名 / 话数
   Widget _buildPosterColumn(AnimeDetails details, {required bool isWide}) {
-    final posterWidth = isWide ? 240.0 : 200.0;
+    final posterWidth = isWide ? 260.0 : 200.0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -250,18 +290,25 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
             heroTag: widget.heroTag,
           ),
         ),
-        addVerticalSpace(16),
+        const SizedBox(height: 16),
         SizedBox(
-          width: isWide ? 240 : double.infinity,
+          width: isWide ? 260 : double.infinity,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _MetaLine(label: '中文名', value: details.displayTitle),
               if (details.episodes != null) ...[
-                addVerticalSpace(8),
+                const SizedBox(height: 8),
                 _MetaLine(
                   label: details.chapterCountLabel!,
                   value: '${details.chapterCount!}',
+                ),
+              ],
+              if (details.members != null) ...[
+                const SizedBox(height: 8),
+                _MetaLine(
+                  label: '收藏数',
+                  value: _compactNumber(details.members!),
                 ),
               ],
             ],
@@ -271,22 +318,24 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
     );
   }
 
+  static String _compactNumber(int value) => value >= 10000
+      ? '${(value / 10000).toStringAsFixed(1)} 万'
+      : '$value';
+
   /// 打开视频源选择器
   Future<void> _openSourceSheet(
     AnimeDetails details, {
     int? preferredEpisode,
   }) async {
-    // 关键词：优先中文标题，无则日文
     final keyword = (details.title?.isNotEmpty ?? false)
         ? details.title!
         : (details.titleJapanese ?? '');
-    // 缺少可用的搜索关键词
     if (keyword.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('缺少可用的搜索关键词')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('缺少可用的搜索关键词')));
       return;
     }
-    // 打开视频源选择器 - showSourceSheet
     final playContext = await showSourceSheet(
       context,
       keyword: keyword,
@@ -295,13 +344,9 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
       preferredEpisode: preferredEpisode,
     );
 
-    if (playContext == null || !mounted) return; // 用户取消
+    if (playContext == null || !mounted) return;
 
-    // Phase 4：先打印；Phase 5 换成完整播放
     debugPrint('[Phase4] PlayContext => $playContext');
-
-    // 拿到 playContext 后，跳转到视频播放页面
-    // 参数由 page auto route 自动解析 ， dart run build_runner build --delete-conflicting-outputs
     context.router.push(
       VideoPageRoute(animeVideo: '', playContext: playContext),
     );
@@ -309,23 +354,22 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
 
   /// 打开选图源面板（书籍）
   Future<void> _openComicSourceSheet(AnimeDetails details) async {
-    // 关键词：优先中文标题，无则日文
     final keyword = (details.title?.isNotEmpty ?? false)
         ? details.title!
         : (details.titleJapanese ?? '');
     if (keyword.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('缺少可用的搜索关键词')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('缺少可用的搜索关键词')));
       return;
     }
-    // 打开选图源面板 - showComicSourceSheet
     final selection = await showComicSourceSheet(
       context,
       keyword: keyword,
       animeId: details.bangumiId,
       animeTitle: details.title ?? keyword,
     );
-    if (selection == null || !mounted) return; // 用户取消
+    if (selection == null || !mounted) return;
     context.router.push(
       ComicReaderRoute(
         sourceKey: selection.sourceKey,
@@ -338,7 +382,7 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
   }
 }
 
-/// 元信息行（海报下方）
+/// 元信息行：等宽标签 + 墨色值。
 class _MetaLine extends StatelessWidget {
   final String label;
   final String value;
@@ -347,25 +391,23 @@ class _MetaLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tone = ArchiveTone.of(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: GoogleFonts.notoSansSc(
-            fontSize: 14,
-            height: 1.9,
-            color: posterBorder,
+        SizedBox(
+          width: 64,
+          child: Text(
+            label,
+            style: ArchiveType.code.copyWith(color: tone.muted),
           ),
         ),
-        const SizedBox(width: 8),
         Expanded(
           child: Text(
             value,
-            style: GoogleFonts.notoSansSc(
-              fontSize: 14,
-              height: 1.9,
-              color: posterBorder,
+            style: ArchiveType.body.copyWith(
+              fontSize: 13,
+              color: tone.ink,
             ),
           ),
         ),

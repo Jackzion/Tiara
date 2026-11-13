@@ -182,7 +182,7 @@ class _ComicSourceSheetState extends ConsumerState<ComicSourceSheet> {
               padding: const EdgeInsets.only(left: 4, bottom: 8),
               child: Text(
                 '无结果',
-                style: body3Regular.copyWith(color: buttonGrey),
+                style: body3Regular.copyWith(color: posterBorder),
               ),
             ),
             // 错误态②：规则抛错，只影响本行
@@ -202,7 +202,7 @@ class _ComicSourceSheetState extends ConsumerState<ComicSourceSheet> {
                     padding: const EdgeInsets.only(left: 16, bottom: 8),
                     child: Text(
                       '仅显示前 30 条，共 ${row.matches.length} 条',
-                      style: body3Regular.copyWith(color: buttonGrey),
+                      style: body3Regular.copyWith(color: posterBorder),
                     ),
                   ),
               ],
@@ -250,7 +250,7 @@ class _ComicSourceSheetState extends ConsumerState<ComicSourceSheet> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             child: state.chapters.isEmpty
-                ? Text('暂无章节', style: body3Regular.copyWith(color: buttonGrey))
+                ? Text('暂无章节', style: body3Regular.copyWith(color: posterBorder))
                 : Wrap(
                     spacing: 6,
                     runSpacing: 6,

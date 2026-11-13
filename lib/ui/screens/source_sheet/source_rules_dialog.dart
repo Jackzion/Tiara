@@ -62,7 +62,7 @@ class _SourceRulesDialogState extends ConsumerState<SourceRulesDialog> {
                         trailing: IconButton(
                           icon: const Icon(
                             Icons.delete_outline,
-                            color: Colors.white70,
+                            color: ArchivePalette.muted,
                           ),
                           onPressed: () => _confirmDelete(rule),
                         ),

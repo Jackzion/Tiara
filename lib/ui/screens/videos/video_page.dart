@@ -320,7 +320,6 @@ class _VideoPageState extends ConsumerState<VideoPage> {
       appBar: AppBar(
         backgroundColor: screenBackground,
         leading: BackButton(
-          color: Colors.white,
           onPressed: () => context.router.maybePop(),
         ),
         centerTitle: false,
@@ -369,7 +368,7 @@ class _VideoPageState extends ConsumerState<VideoPage> {
                         children: [
                           const CircularProgressIndicator(),
                           addVerticalSpace(12),
-                          Text('正在解析视频源…', style: body2Regular),
+                          Text('正在解析视频源…', style: body2Regular.copyWith(color: Colors.white)),
                         ],
                       ),
                     ),
@@ -387,7 +386,9 @@ class _VideoPageState extends ConsumerState<VideoPage> {
                             Text(
                               _playError!,
                               textAlign: TextAlign.center,
-                              style: body2Regular,
+                              style: body2Regular.copyWith(
+                                color: Colors.white,
+                              ),
                             ),
                             addVerticalSpace(16),
                             Row(
@@ -475,7 +476,7 @@ class _VideoPageState extends ConsumerState<VideoPage> {
                     child: Text(
                       _episodeDisplayName(play, _roadIndex, i),
                       style: body3Regular.copyWith(
-                        color: selected ? onAccent : Colors.white,
+                        color: selected ? onAccent : ArchivePalette.ink,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -512,7 +513,7 @@ class _VideoPageState extends ConsumerState<VideoPage> {
                   children: [
                     const CircularProgressIndicator(),
                     addVerticalSpace(12),
-                    Text('正在解析预告片…', style: body2Regular),
+                    Text('正在解析预告片…', style: body2Regular.copyWith(color: Colors.white)),
                   ],
                 ),
               ),
@@ -528,7 +529,7 @@ class _VideoPageState extends ConsumerState<VideoPage> {
                     children: [
                       Text(
                         _playError!,
-                        style: body2Regular,
+                        style: body2Regular.copyWith(color: Colors.white),
                         textAlign: TextAlign.center,
                       ),
                       addVerticalSpace(16),

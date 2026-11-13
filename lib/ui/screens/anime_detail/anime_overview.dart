@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:movies/data/models/anime_details.dart';
 import 'package:movies/data/models/genre.dart';
-import 'package:movies/utils/utils.dart';
-import 'package:movies/ui/theme/theme.dart';
+import 'package:movies/ui/theme/archive_tokens.dart';
+import 'package:movies/ui/widgets/archive/archive_ui.dart';
 
-/// 动漫简介右栏组件
-/// 参考 Bangumi 详情页右侧：章节按钮 + 简介 + 标签胶囊
-/// 左侧海报与元信息由 AnimeDetail 布局提供
+/// 详情页右栏：剧情简介 → 章节 → 标签，三段档案索引。
 class AnimeOverview extends StatefulWidget {
-  /// 动漫详情数据
   final AnimeDetails details;
 
   /// 兼容旧参数（新布局不再使用上移重叠）
@@ -37,163 +33,119 @@ class AnimeOverview extends StatefulWidget {
   State<AnimeOverview> createState() => _AnimeOverviewState();
 }
 
-class _AnimeOverviewState extends State<AnimeOverview>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    duration: const Duration(seconds: 2),
-    vsync: this,
-  )..forward();
-
-  late final Animation<Offset> _offsetAnimation = Tween<Offset>(
-    begin: const Offset(1.0, 0.0),
-    end: Offset.zero,
-  ).animate(CurvedAnimation(parent: _controller, curve: Curves.elasticOut));
-
+class _AnimeOverviewState extends State<AnimeOverview> {
   bool _expandedChapters = false;
   bool _expandedTags = false;
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
   String _pad(int n) => n.toString().padLeft(2, '0');
+
+  int get _episodes => widget.details.isBook
+      ? widget.details.chapterCount ?? 0
+      : widget.details.episodes ?? 0;
 
   @override
   Widget build(BuildContext context) {
     final details = widget.details;
     final genres = details.genres ?? <Genre>[];
-    final synopsis = details.synopsis ?? '';
-    final synopsisLines = _splitSynopsis(synopsis);
-    final episodes = details.isBook
-        ? details.chapterCount ?? 0
-        : details.episodes ?? 0;
+    final synopsisLines = _splitSynopsis(details.synopsis ?? '');
+    final episodes = _episodes;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        _buildChapterHeader(),
-        // 数字章节按钮仅在数量已知时渲染
-        if (episodes > 0) ...[
-          addVerticalSpace(12),
-          _buildChapterButtons(episodes),
-        ],
-        addVerticalSpace(16),
-
-        const Divider(height: 1, thickness: 1, color: dividerLine),
-        addVerticalSpace(18),
-
-        if (synopsisLines.isNotEmpty)
+        if (synopsisLines.isNotEmpty) ...[
+          const ArchiveSection(title: '剧情简介', code: '01 / SYNOPSIS'),
+          const SizedBox(height: 12),
           for (final line in synopsisLines) ...[
             _DescText(line),
-            addVerticalSpace(4),
+            const SizedBox(height: 10),
           ],
-
-        if (genres.isNotEmpty) ...[addVerticalSpace(14), _buildTagBox(genres)],
-      ],
-    );
-  }
-
-  Widget _buildChapterHeader() {
-    final details = widget.details;
-    // 与 build 同口径：书籍取 chapterCount
-    final episodes = details.isBook
-        ? details.chapterCount ?? 0
-        : details.episodes ?? 0;
-    final showToggle = episodes > 12;
-
-    return Row(
-      children: [
-        Text(
-          '章节列表',
-          style: GoogleFonts.notoSansSc(fontSize: 15, color: textSoft),
-        ),
-        if (showToggle) ...[
-          const SizedBox(width: 6),
-          GestureDetector(
-            onTap: () => setState(() => _expandedChapters = !_expandedChapters),
-            child: Text(
-              _expandedChapters ? '[收起]' : '[全部]',
-              style: GoogleFonts.notoSansSc(fontSize: 15, color: accentAmber),
-            ),
-          ),
+          const SizedBox(height: 18),
         ],
-        const Spacer(),
-        GestureDetector(
-          onTap: widget.onWatchTap,
-          child: Text(
-            widget.details.isBook ? '开始阅读 ›' : '开始观看 ›',
-            style: GoogleFonts.notoSansSc(fontSize: 15, color: accentAmber),
+        ArchiveSection(
+          title: '章节',
+          code: '02 / CHAPTERS',
+          trailing: ArchivePillButton(
+            label: details.isBook ? '开始阅读' : '开始观看',
+            icon: Icons.play_arrow_rounded,
+            height: 40,
+            onPressed: widget.onWatchTap,
           ),
         ),
+        const SizedBox(height: 14),
+        if (episodes > 0) _buildChapterButtons(episodes),
+        if (genres.isNotEmpty) ...[
+          const SizedBox(height: 28),
+          const ArchiveSection(title: '标签', code: '03 / TAGS'),
+          const SizedBox(height: 12),
+          _buildTagBox(genres),
+        ],
       ],
     );
   }
 
   Widget _buildChapterButtons(int episodes) {
-    final limit = _expandedChapters || episodes <= 12 ? episodes : 12;
+    final limit = _expandedChapters || episodes <= 24 ? episodes : 24;
     final shown = episodes.clamp(1, limit);
+    final tone = ArchiveTone.of(context);
 
     return Wrap(
       spacing: 6,
       runSpacing: 6,
       children: [
         for (var n = 1; n <= shown; n++)
-          _ChapterButton(
+          _ChapterChip(
             label: _pad(n),
             onTap: () => widget.onEpisodeTap?.call(n),
+          ),
+        if (episodes > limit)
+          ArchiveTextButton(
+            onPressed: () =>
+                setState(() => _expandedChapters = !_expandedChapters),
+            child: Text(
+              '还有 ${episodes - limit} 话',
+              style: ArchiveType.micro.copyWith(color: tone.muted),
+            ),
           ),
       ],
     );
   }
 
   Widget _buildTagBox(List<Genre> genres) {
-    const maxVisible = 12;
+    const maxVisible = 16;
     final visible = _expandedTags || genres.length <= maxVisible
         ? genres
         : genres.sublist(0, maxVisible);
     final hasMore = genres.length > maxVisible;
+    final tone = ArchiveTone.of(context);
 
-    return Container(
-      width: double.infinity,
+    return PaperPanel(
       padding: const EdgeInsets.fromLTRB(14, 13, 14, 14),
-      decoration: BoxDecoration(
-        color: buttonGrey,
-        borderRadius: BorderRadius.circular(3),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '大家将 ${widget.details.displayTitle} 标注为',
-            style: GoogleFonts.notoSansSc(
-              fontSize: 14,
-              height: 1.95,
-              color: posterBorder,
-            ),
+            '大家将「${widget.details.displayTitle}」标注为',
+            style: ArchiveType.meta.copyWith(color: tone.muted),
           ),
-          addVerticalSpace(13),
-          SlideTransition(
-            position: _offsetAnimation,
-            child: Wrap(
-              spacing: 7,
-              runSpacing: 7,
-              children: [
-                for (final genre in visible)
-                  _TagPill(
-                    name: genre.name,
-                    count: genre.count,
-                    onTap: () => widget.onTagTap?.call(genre),
-                  ),
-                if (hasMore)
-                  _TagPill(
-                    onTap: () => setState(() => _expandedTags = !_expandedTags),
-                    name: _expandedTags ? '收起' : '更多+',
-                  ),
-              ],
-            ),
+          const SizedBox(height: 13),
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            children: [
+              for (final genre in visible)
+                _TagPill(
+                  name: genre.name,
+                  count: genre.count,
+                  onTap: () => widget.onTagTap?.call(genre),
+                ),
+              if (hasMore)
+                _TagPill(
+                  onTap: () => setState(() => _expandedTags = !_expandedTags),
+                  name: _expandedTags ? '收起' : '更多 +',
+                ),
+            ],
           ),
         ],
       ),
@@ -211,47 +163,41 @@ class _AnimeOverviewState extends State<AnimeOverview>
   }
 }
 
-/// 章节按钮
-class _ChapterButton extends StatelessWidget {
+/// 章节号：纸底 mono 编号，悬停变深，没有渐变与投影。
+class _ChapterChip extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const _ChapterButton({required this.label, required this.onTap});
+  const _ChapterChip({required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
-        child: Ink(
-          width: 36,
-          height: 28,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [accentAmberLight, accentAmber, accentAmberDeep],
-              stops: [0.0, 0.52, 1.0],
-            ),
-            borderRadius: BorderRadius.circular(6),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x59000000),
-                offset: Offset(0, 1),
-                blurRadius: 1,
-              ),
-            ],
+    final tone = ArchiveTone.of(context);
+    return SizedBox(
+      width: 40,
+      height: 30,
+      child: Material(
+        color: tone.milk,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(ArchiveGeometry.coverRadius),
+          side: BorderSide(
+            color: tone.hairline,
+            width: ArchiveGeometry.hairlineWidth,
           ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          hoverColor: tone.raisedHigh,
+          splashFactory: NoSplash.splashFactory,
+          highlightColor: Colors.transparent,
           child: Center(
             child: Text(
               label,
-              style: GoogleFonts.notoSansSc(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 0.5,
-                color: onAccent,
+              style: ArchiveType.code.copyWith(
+                fontSize: 11,
+                color: tone.ink,
+                letterSpacing: 0.4,
               ),
             ),
           ),
@@ -261,45 +207,52 @@ class _ChapterButton extends StatelessWidget {
   }
 }
 
-/// 标签胶囊
+/// 标签胶囊：纸底 + 发丝线，计数用 mono。
 class _TagPill extends StatelessWidget {
   final String name;
   final int? count;
-
-  // 点击回调，可空
   final VoidCallback? onTap;
 
   const _TagPill({required this.name, this.count, this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final tone = ArchiveTone.of(context);
     return Material(
-      color: buttonGrey, // ← 背景色从 Container 挪到这里
-      borderRadius: BorderRadius.circular(999),
+      color: tone.surface,
+      borderRadius: BorderRadius.circular(ArchiveGeometry.pillRadius),
       child: InkWell(
-        onTap: onTap, // ← 标签 tag 点击事件
-        borderRadius: BorderRadius.circular(999), // 水波纹跟随胶囊圆角
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(ArchiveGeometry.pillRadius),
+        hoverColor: tone.raisedHigh,
+        splashFactory: NoSplash.splashFactory,
+        highlightColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(ArchiveGeometry.pillRadius),
+            border: Border.all(
+              color: tone.hairline,
+              width: ArchiveGeometry.hairlineWidth,
+            ),
+          ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 name,
-                style: GoogleFonts.notoSansSc(
-                  fontSize: 13,
-                  height: 1,
-                  color: textSoft,
+                style: ArchiveType.micro.copyWith(
+                  fontSize: 12,
+                  color: tone.ink,
                 ),
               ),
               if (count != null) ...[
                 const SizedBox(width: 5),
                 Text(
                   '$count',
-                  style: GoogleFonts.notoSansSc(
-                    fontSize: 11,
-                    height: 1,
-                    color: posterBorder,
+                  style: ArchiveType.code.copyWith(
+                    color: tone.muted,
+                    letterSpacing: 0.3,
                   ),
                 ),
               ],
@@ -311,7 +264,7 @@ class _TagPill extends StatelessWidget {
   }
 }
 
-/// 简介正文
+/// 简介正文：14 / 1.9，墨色，段间 10。
 class _DescText extends StatelessWidget {
   final String text;
 
@@ -321,11 +274,10 @@ class _DescText extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: GoogleFonts.notoSansSc(
-        fontSize: 15,
-        height: 2,
-        letterSpacing: 0.3,
-        color: posterBorder,
+      style: ArchiveType.bodyRegular.copyWith(
+        height: 1.9,
+        letterSpacing: 0.2,
+        color: ArchiveTone.of(context).ink,
       ),
     );
   }

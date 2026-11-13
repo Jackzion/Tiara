@@ -291,7 +291,7 @@ class _TopBar extends StatelessWidget {
             children: [
               IconButton(
                 onPressed: onBack,
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                icon: const Icon(Icons.arrow_back),
               ),
               Expanded(
                 child: Text(
@@ -353,11 +353,11 @@ class _BottomBar extends StatelessWidget {
                           ? Icons.fit_screen
                           : Icons.width_full,
                       size: 18,
-                      color: Colors.white,
+                      color: ArchivePalette.ink,
                     ),
                     label: Text(
                       fitMode.label,
-                      style: body3Regular.copyWith(color: Colors.white),
+                      style: body3Regular.copyWith(color: ArchivePalette.ink),
                     ),
                   ),
                   const Spacer(),

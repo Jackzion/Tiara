@@ -3,6 +3,7 @@ import 'package:movies/data/models/genre_state.dart';
 import 'package:movies/data/repositories/anime_repository.dart';
 import 'package:movies/state/genre_controller.dart';
 import 'package:movies/ui/theme/theme.dart';
+import 'package:movies/ui/widgets/archive/archive_ui.dart';
 
 typedef OnTypeSelected = void Function(SubjectTypeFilter filter);
 typedef OnGenresSelected = void Function(List<GenreState>);
@@ -169,27 +170,34 @@ class GenreSection extends StatelessWidget {
   }
 
   Widget _panel(String title, List<Widget> tags) {
-    return Container(
+    return PaperPanel(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.fromLTRB(14, 9, 14, 11),
-      decoration: BoxDecoration(
-        color: searchBarBackground,
-        borderRadius: BorderRadius.circular(10),
-      ),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Text(
-              title,
-              style: roboto.copyWith(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: ArchiveType.body.copyWith(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: ArchivePalette.ink,
+                  ),
+                ),
               ),
-            ),
+              ArchiveCode('${tags.length}'),
+            ],
           ),
+          const SizedBox(height: 8),
+          Divider(
+            height: 1,
+            thickness: ArchiveGeometry.dividerWidth,
+            color: ArchivePalette.hairline,
+          ),
+          const SizedBox(height: 8),
           Wrap(spacing: 1, runSpacing: 2, children: tags),
         ],
       ),
@@ -202,21 +210,21 @@ class GenreSection extends StatelessWidget {
     required VoidCallback onTap,
   }) {
     return Material(
-      color: active ? accentAmber : Colors.transparent,
-      borderRadius: BorderRadius.circular(6),
+      color: active ? ArchivePalette.ink : Colors.transparent,
+      borderRadius: BorderRadius.circular(ArchiveGeometry.coverRadius),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
-        hoverColor: accentAmber.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(ArchiveGeometry.coverRadius),
+        hoverColor: ArchivePalette.raisedHigh,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           child: Text(
             label,
-            style: roboto.copyWith(
+            style: ArchiveType.meta.copyWith(
               fontSize: 12.5,
               height: 22 / 12.5,
               fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-              color: active ? onAccent : textSoft,
+              color: active ? ArchivePalette.milk : ArchivePalette.ink,
             ),
           ),
         ),

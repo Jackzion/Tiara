@@ -29,7 +29,7 @@ class _GenreSearchRowState extends ConsumerState<GenreSearchRow> {
     // 与外部 searchTextNotifier 保持同步（Dialog / 菜单写入时更新输入框）
     animeTextController.text = widget.searchText;
     return TextField(
-      style: const TextStyle(color: Colors.white),
+      style: const TextStyle(color: ArchivePalette.ink),
       focusNode: textFocusNode,
       keyboardType: TextInputType.text,
       enableSuggestions: false,
@@ -61,10 +61,10 @@ class _GenreSearchRowState extends ConsumerState<GenreSearchRow> {
           onPressed: () {
             animeTextController.clear();
           },
-          icon: const Icon(Icons.close, size: 18, color: Colors.white),
+          icon: const Icon(Icons.close, size: 18, color: ArchivePalette.ink),
         ),
         prefixIcon: IconButton(
-          icon: const Icon(Icons.search, size: 20, color: Colors.white),
+          icon: const Icon(Icons.search, size: 20, color: ArchivePalette.ink),
           onPressed: () {
             widget.onSearch(animeTextController.text);
           },

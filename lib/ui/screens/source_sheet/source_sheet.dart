@@ -303,7 +303,7 @@ class _SourceSheetState extends ConsumerState<SourceSheet> {
                 padding: const EdgeInsets.only(left: 4, bottom: 8),
                 child: Text(
                   '无结果',
-                  style: body3Regular.copyWith(color: buttonGrey),
+                  style: body3Regular.copyWith(color: posterBorder),
                 ),
               ),
             SourceSearchStatus.error => Padding(
@@ -333,7 +333,7 @@ class _SourceSheetState extends ConsumerState<SourceSheet> {
                       padding: const EdgeInsets.only(left: 16, bottom: 8),
                       child: Text(
                         '仅显示前 30 条，共 ${row.items.length} 条',
-                        style: body3Regular.copyWith(color: buttonGrey),
+                        style: body3Regular.copyWith(color: posterBorder),
                       ),
                     ),
                 ],
@@ -355,14 +355,14 @@ class _StatusChip extends StatelessWidget {
     final (label, color) = switch (status) {
       SourceSearchStatus.pending => ('搜索中', accentAmber),
       SourceSearchStatus.success => ('可用', successGreen),
-      SourceSearchStatus.empty => ('空', buttonGrey),
+      SourceSearchStatus.empty => ('空', posterBorder),
       SourceSearchStatus.error => ('失败', dangerRed),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(ArchiveGeometry.coverRadius),
         border: Border.all(color: color.withValues(alpha: 0.5)),
       ),
       child: Text(label, style: body3Regular.copyWith(color: color)),

@@ -41,11 +41,13 @@ class _SourceImportDialogState extends ConsumerState<SourceImportDialog> {
               keyboardType: TextInputType.multiline,
               decoration: InputDecoration(
                 filled: true,
-                fillColor: posterBorder,
+                fillColor: ArchivePalette.raised,
                 hintText: '{ "name": "...", "baseURL": "...", ... }',
-                hintStyle: body3Regular.copyWith(color: buttonGrey),
+                hintStyle: body3Regular.copyWith(color: posterBorder),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(
+                    ArchiveGeometry.panelRadius,
+                  ),
                   borderSide: BorderSide.none,
                 ),
               ),

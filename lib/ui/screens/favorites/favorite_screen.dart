@@ -6,12 +6,12 @@ import 'package:movies/providers.dart';
 import 'package:movies/router/app_routes.dart';
 import 'package:movies/state/favorite_controller.dart';
 import 'package:movies/ui/screens/genres/sort_picker.dart';
-import 'package:movies/ui/theme/theme.dart';
-import 'package:movies/ui/widgets/vert_favorite_list.dart';
+import 'package:movies/ui/theme/archive_tokens.dart';
+import 'package:movies/ui/widgets/archive/archive_ui.dart';
 import 'package:movies/ui/widgets/not_ready.dart';
+import 'package:movies/ui/widgets/vert_favorite_list.dart';
 
-/// 收藏页面
-/// 展示用户收藏的动漫列表，支持排序和收藏状态更新
+/// 收藏夹：档案化列表 + 排序。
 @RoutePage(name: 'FavoriteRoute')
 class FavoriteScreen extends ConsumerStatefulWidget {
   const FavoriteScreen({super.key});
@@ -23,7 +23,6 @@ class FavoriteScreen extends ConsumerStatefulWidget {
 class _FavoriteScreenState extends ConsumerState<FavoriteScreen> {
   @override
   Widget build(BuildContext context) {
-    // 数据层就绪（收藏缓存预热完成）后才渲染
     final dataReadyAsync = ref.watch(dataReadyProvider);
     return dataReadyAsync.when(
       error: (e, st) => Text(e.toString()),
@@ -33,74 +32,108 @@ class _FavoriteScreenState extends ConsumerState<FavoriteScreen> {
   }
 
   Widget buildScreen() {
-    // 收藏列表流：数据库变更自动推送，删除后无需手动刷新
+    final tone = ArchiveTone.of(context);
     final favoritesAsync = ref.watch(favoriteListProvider);
-    // 排序方式变化自动 rebuild
     final selectedSort = ref.watch(favoriteControllerProvider);
-    return SafeArea(
-      child: favoritesAsync.when(
-        loading: () => const NotReady(),
-        error: (e, st) => Text(e.toString()),
-        data: (favorites) {
-          final currentFavorites =
-              ref.read(favoriteControllerProvider.notifier).sortFavorites(favorites);
-          return Scaffold(
-            body: Container(
-              color: screenBackground,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.start,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: CustomScrollView(
-                      slivers: [
-                        SliverList(
-                          delegate: SliverChildListDelegate(
-                            [
-                              Padding(
-                                padding:
-                                    const EdgeInsets.fromLTRB(16, 16.0, 0.0, 24.0),
-                                child: Text(
-                                  'My Favorites',
-                                  style:
-                                      Theme.of(context).textTheme.titleLarge,
-                                ),
+
+    return Scaffold(
+      backgroundColor: tone.pageEnd,
+      body: Atmosphere(
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: favoritesAsync.when(
+                loading: () => const NotReady(),
+                error: (e, st) => Text(e.toString()),
+                data: (favorites) {
+                  final currentFavorites = ref
+                      .read(favoriteControllerProvider.notifier)
+                      .sortFavorites(favorites);
+                  return Align(
+                    alignment: Alignment.topCenter,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1180),
+                      child: CustomScrollView(
+                        slivers: [
+                          SliverPadding(
+                            padding: archivePagePadding(
+                              context,
+                            ).copyWith(bottom: 0),
+                            sliver: SliverToBoxAdapter(
+                              child: ArchiveSection(
+                                title: '我的收藏',
+                                code: '01 / FAVORITES',
+                                subtitle:
+                                    '${currentFavorites.length} 条记录 · '
+                                    '按 ${selectedSort.name} 排序',
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                        SortPicker(
-                          selectedSort: selectedSort,
-                          useSliver: true,
-                          onSortSelected: (sorting) {
-                            ref
-                                .read(favoriteControllerProvider.notifier)
-                                .setSort(sorting);
-                          },
-                        ),
-                        VerticalFavoriteList(
-                          favorites: currentFavorites,
-                          onAnimeTap: (animeId, heroTag) {
-                            context.router.push(AnimeDetailRoute(
-                              animeId: animeId,
-                              heroTag: heroTag,
-                            ));
-                          },
-                          onFavoritesTap: (DBFavorite favorite) {
-                            ref
-                                .read(favoriteControllerProvider.notifier)
-                                .removeFavorite(favorite);
-                          },
-                        ),
-                      ],
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(
+                              ArchiveGeometry.pagePadding,
+                              10,
+                              ArchiveGeometry.pagePadding,
+                              8,
+                            ),
+                            sliver: SliverToBoxAdapter(
+                              child: SortPicker(
+                                selectedSort: selectedSort,
+                                useSliver: false,
+                                onSortSelected: (sorting) {
+                                  ref
+                                      .read(
+                                        favoriteControllerProvider.notifier,
+                                      )
+                                      .setSort(sorting);
+                                },
+                              ),
+                            ),
+                          ),
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(
+                              ArchiveGeometry.pagePadding,
+                              4,
+                              ArchiveGeometry.pagePadding,
+                              48,
+                            ),
+                            sliver: VerticalFavoriteList(
+                              favorites: currentFavorites,
+                              onAnimeTap: (animeId, heroTag) {
+                                context.router.push(
+                                  AnimeDetailRoute(
+                                    animeId: animeId,
+                                    heroTag: heroTag,
+                                  ),
+                                );
+                              },
+                              onFavoritesTap: (DBFavorite favorite) {
+                                ref
+                                    .read(favoriteControllerProvider.notifier)
+                                    .removeFavorite(favorite);
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  );
+                },
               ),
             ),
-          );
-        },
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: FrostedHeader(
+                child: ArchiveMasthead(
+                  title: '收藏夹',
+                  code: 'MOVIES / FAVOURITES',
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

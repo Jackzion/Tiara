@@ -37,7 +37,7 @@ class _SearchDialogState extends ConsumerState<SearchDialog> {
         child: TextField(
           controller: searchTextController,
           autofocus: true,
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: ArchivePalette.ink),
           keyboardType: TextInputType.text,
           enableSuggestions: false,
           autocorrect: false,

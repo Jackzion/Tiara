@@ -79,7 +79,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     // 当前导航下标
     final currentIndex = ref.watch(currentNavIndexProvider);
     return Scaffold(
-      backgroundColor: screenBackground,
+      backgroundColor: ArchiveTone.of(context).pageEnd,
       body: AdaptiveLayout(
         // 左侧导航轨：中屏及以上
         primaryNavigation: SlotLayout(
@@ -114,12 +114,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   _screens[currentIndex],
                   // 应用菜单：搜索 / 页面跳转
                   Positioned(
-                    top: 8,
-                    right: 8,
+                    top: 14,
+                    right: 20,
                     child: PopupMenuButton<AppMenuAction>(
                       tooltip: 'Menu',
-                      icon: const Icon(Icons.more_vert, color: Colors.white),
-                      color: searchBarBackground,
+                      icon: const Icon(Icons.more_horiz),
+                      iconColor: ArchiveTone.of(context).ink,
                       onSelected: _onMenuSelected,
                       itemBuilder: (_) => buildAppMenuItems(),
                     ),

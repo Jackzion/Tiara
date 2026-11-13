@@ -39,40 +39,37 @@ class _HorizontalAnimesState extends State<HorizontalAnimes> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final items = widget.animes.take(widget.itemCount).toList();
-          if (items.isEmpty) {
-            return const SizedBox.shrink();
-          }
-          final contentWidth = constraints.maxWidth;
-          final columns = columnsForWidth(contentWidth);
-          final rows = (items.length / columns).ceil();
-          final cellWidth = (contentWidth - gap * (columns - 1)) / columns;
-          final cellHeight = posterHeightFor(cellWidth);
-          final expandedWidth = cellWidth * 2;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final items = widget.animes.take(widget.itemCount).toList();
+        if (items.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        final contentWidth = constraints.maxWidth;
+        final columns = columnsForWidth(contentWidth);
+        final rows = (items.length / columns).ceil();
+        final cellWidth = (contentWidth - gap * (columns - 1)) / columns;
+        final cellHeight = posterHeightFor(cellWidth);
+        final expandedWidth = cellWidth * 2;
 
-          return Column(
-            children: [
-              for (var row = 0; row < rows; row++)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: buildRow(
-                    row: row,
-                    columns: columns,
-                    items: items,
-                    cellWidth: cellWidth,
-                    cellHeight: cellHeight,
-                    expandedWidth: expandedWidth,
-                    contentWidth: contentWidth,
-                  ),
+        return Column(
+          children: [
+            for (var row = 0; row < rows; row++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 24),
+                child: buildRow(
+                  row: row,
+                  columns: columns,
+                  items: items,
+                  cellWidth: cellWidth,
+                  cellHeight: cellHeight,
+                  expandedWidth: expandedWidth,
+                  contentWidth: contentWidth,
                 ),
-            ],
-          );
-        },
-      ),
+              ),
+          ],
+        );
+      },
     );
   }
 
