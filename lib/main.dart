@@ -10,15 +10,28 @@ import 'package:movies/providers.dart';
 import 'package:movies/services/comic_source/comic_rule_catalog.dart';
 import 'package:movies/ui/search/global_search_scope.dart';
 import 'package:movies/ui/theme/theme.dart';
+import 'package:movies/ui/widgets/archive/archive_window_bar.dart';
 import 'package:movies/utils/system_proxy.dart';
 import 'package:movies/utils/utils.dart';
 import 'package:movies/utils/webview_probe.dart';
+import 'package:window_manager/window_manager.dart';
 
 void main() async {
   // pod_player 在 Windows/Linux/macOS 底层用 media_kit,
   // 必须显式初始化，否则视频播放会直接报 "Error while playing video"
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
+
+  // set window options before show
+  await windowManager.ensureInitialized();
+  WindowOptions windowOptions = const WindowOptions(
+    // hide title bar
+    titleBarStyle: TitleBarStyle.hidden,
+  );
+  windowManager.waitUntilReadyToShow(windowOptions, () async {
+    await windowManager.show();
+    await windowManager.focus();
+  });
 
   // 桌面端限制窗口最小尺寸，避免过小导致布局不可用
   if (isDesktop()) {
@@ -35,7 +48,7 @@ void main() async {
   // 启动 APP 前检测 webView2 是否可用
   final ok = await probeHeadlessWebview();
   debugPrint('WebView2 available: $ok');
-  
+
   runApp(const ProviderScope(child: MainApp()));
 }
 
@@ -63,7 +76,16 @@ class _MainAppState extends ConsumerState<MainApp> {
       // 全局搜索：包在路由子树外，Idle 吃可打印键 / Ctrl+K 唤起 Overlay
       builder: (context, child) {
         return GlobalSearchScope(
-          child: child ?? const SizedBox.shrink(),
+          child: Scaffold(
+            backgroundColor: ArchivePalette.background,
+            body: Column(
+              children: [
+                // 自定义窗口栏
+                ArchiveWindowBar(),
+                Expanded(child: child ?? const SizedBox.shrink()),
+              ],
+            ),
+          ),
         );
       },
     );
