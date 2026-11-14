@@ -58,7 +58,7 @@ class GenrePageState {
       if (state.isSelected) state.genre.name,
   ];
 
-  /// （pageIndex - 1）* 10 -> offset
+  /// 0 - first page, 1 - second page, etc
   final int page;
   final int total;
 
@@ -119,8 +119,8 @@ class GenreController extends _$GenreController {
     ];
   }
 
-  /// 消费一次跨页搜索请求（全局搜索 / SearchDialog / 详情页点标签）
   /// 同序号只应用一次，页面重建 / Tab 切回不会重复打请求
+  /// 消费一次跨页搜索请求（全局搜索 / SearchDialog / 详情页点标签）
   Future<bool> applyRequest(SearchRequest request) async {
     // 非最新请求，直接返回
     if (request.seq <= _appliedSeq) {
@@ -144,7 +144,10 @@ class GenreController extends _$GenreController {
     }
     // set type filter
     if (request.types.isNotEmpty) {
-      pageState = pageState.copyWith(typeFilter: _filterOfType(request.types));
+      pageState = pageState.copyWith(
+        typeFilter: _filterOfType(request.types),
+        page: 0,
+      );
     }
     state = AsyncData(pageState);
     return search();
@@ -152,19 +155,19 @@ class GenreController extends _$GenreController {
 
   /// 本地搜索框提交
   Future<bool> searchByKeyword(String keyword) async {
-    state = AsyncData(state.value!.copyWith(keyword: keyword));
+    state = AsyncData(state.value!.copyWith(keyword: keyword, page: 0));
     return search();
   }
 
   /// 更新 chip 选中状态（保持全量列表）并持久化，然后重搜
   Future<bool> updateSelections(List<GenreState> fullList) async {
-    state = AsyncData(state.value!.copyWith(genreStates: fullList));
+    state = AsyncData(state.value!.copyWith(genreStates: fullList, page: 0));
     await saveSelectedGenres();
     return search();
   }
 
   Future<bool> setTypeFilter(SubjectTypeFilter filter) async {
-    state = AsyncData(state.value!.copyWith(typeFilter: filter));
+    state = AsyncData(state.value!.copyWith(typeFilter: filter, page: 0));
     return search();
   }
 
@@ -183,6 +186,7 @@ class GenreController extends _$GenreController {
           for (final t in pageState.externalTags)
             if (t != tag) t,
         ],
+        page: 0,
       ),
     );
     return search();
