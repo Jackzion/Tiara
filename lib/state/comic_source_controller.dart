@@ -69,15 +69,22 @@ class ComicSourceController extends _$ComicSourceController {
   Future<ComicSheetState> build(String keyword) async {
     _keyword = keyword;
     final repo = await ref.read(comicRepositoryProvider.future);
-    final sources = repo.sources;
+    final sources = repo.sources.values.toList();
     // 空列表 = 图源未就绪（规则未装载），UI 显示空态
     if (sources.isEmpty) {
       return const ComicSheetState();
     }
-    final rows = await Future.wait([
-      for (final s in sources.values) _searchOne(s),
-    ]);
-    return ComicSheetState(rows: rows);
+    // to show all pending currently
+    final initial = ComicSheetState(
+      rows: [
+        for (final s in sources)
+          ComicSourceRow(sourceKey: s.key, sourceName: s.name),
+      ],
+    );
+    // 后台并发跑，谁先回谁先 patch - 注:相比 unawait -> unwait 会执行到 future 才会让出 cpu , 而 microtask 会直接让给 ui 渲染
+    Future.microtask(() => _runAll(sources));
+
+    return initial;
   }
 
   /// 单源搜索；失败只标记该行 error，不拖垮其它行（计划 §3.5）
@@ -127,5 +134,41 @@ class ComicSourceController extends _$ComicSourceController {
     }
     // set State with chapters
     state = AsyncData(state.value!.copyWith(chapters: chapters));
+  }
+
+  // search and update comicSourceRow when worker finished
+  Future<void> _runAll(List<ComicSource> sources) async {
+    const concurrency = 3;
+    var next = 0;
+    Future<void> worker() async {
+      while (next < sources.length && ref.mounted) {
+        final source = sources[next++];
+        final row = await _searchOne(source);
+        if (!ref.mounted) return;
+        _patch(row);
+      }
+    }
+
+    await Future.wait([for (var i = 0; i < concurrency; i++) worker()]);
+  }
+
+  // update one comicSourceRow
+  void _patch(ComicSourceRow row) {
+    final currentState = state.value;
+    if (currentState == null) return;
+    // get the new comicSourceRows
+    final newRows = [
+      for (final r in currentState.rows) r.sourceKey == row.sourceKey ? row : r,
+    ];
+    // sort with error message
+    newRows.sort((a, b) {
+      final aHasError = a.errorMessage != null && a.errorMessage!.isNotEmpty;
+      final bHasError = b.errorMessage != null && b.errorMessage!.isNotEmpty;
+
+      if (aHasError == bHasError) return 0; // 保持原相对顺序
+      return aHasError ? 1 : -1; // 有错的排后面
+    });
+    // update state
+    state = AsyncData(currentState.copyWith(rows: newRows));
   }
 }
