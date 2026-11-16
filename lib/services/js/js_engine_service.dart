@@ -1,21 +1,31 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_qjs/flutter_qjs.dart';
 import 'package:lumberdash/lumberdash.dart';
 import 'package:movies/services/js/host_convert.dart';
+import 'package:movies/services/js/host_html.dart';
 import 'package:movies/services/js/host_network.dart';
 
 /// QuickJS 引擎服务（应用级单例，keepAlive——引擎启动成本高）
 /// 装载链：init.js → 规则 js → ComicSource.sources.key
 /// JS 一切 Host API 经 init.js sendMessage 落到 [_messageReceiver]
 class JsEngineService {
-  JsEngineService({required this.hostNetwork, required this.hostConvert});
+  JsEngineService({
+    required this.hostNetwork,
+    required this.hostConvert,
+    required this.hostHtml,
+  });
 
   /// SendMessage.http 的 Host 实现
   final HostNetwork hostNetwork;
+
+  /// SendMessage.http 的 Host 实现
+  final HostHtml hostHtml;
 
   /// SendMessage.convert 的 Host 实现
   final HostConvert hostConvert;
@@ -46,6 +56,20 @@ class JsEngineService {
     setGlobal(['appVersion', '1.0.0']);
     // 注释放句柄，避免内存泄漏
     setGlobal.free();
+    // host 抛出的字符串（如 'Host API 未实现: xxx'）在 JS 里是 throw "string"，
+    // 规则的 catch(err) 拿不到 err.message。这里统一包成 Error。
+    engine.evaluate('''
+      (function () {
+        var raw = sendMessage;
+        this.sendMessage = function (msg) {
+          try {
+            return raw(msg);
+          } catch (e) {
+            throw (e instanceof Error) ? e : new Error(String(e));
+          }
+        };
+      }).call(this)
+    ''', name: '<host-wrapper>');
     // evaluate init.js
     engine.evaluate(
       await rootBundle.loadString('assets/init.js'),
@@ -123,6 +147,8 @@ class JsEngineService {
     switch (method) {
       case 'http':
         return hostNetwork.handle(Map<String, dynamic>.from(message));
+      case 'html':
+        return hostHtml.handle(Map<String, dynamic>.from(message));
       case 'convert':
         return hostConvert.handle(Map<String, dynamic>.from(message));
       case 'delay':
@@ -146,13 +172,69 @@ class JsEngineService {
         final key = message['key'] as String;
         final settingKey = message['setting_key'] as String;
         return _kv[key]?['settings']?[settingKey] ??
-            _settingsDefaults[key]?[settingKey] ??
-            (throw 'Setting not found: $settingKey');
+            _settingsDefaults[key]?[settingKey];
+      case 'uuid':
+        return _uuidV4();
+      case 'isLogged':
+        // 只有一个 key（规则 key）。没有显式 token 即视为未登录，
+        // 让规则走「需要登录」分支，而不是抛错。
+        final ruleKey = message['key'] as String?;
+        if (ruleKey == null) return false;
+        final data = _kv[ruleKey];
+        if (data == null) return false;
+        for (final tokenKey in const [
+          'token',
+          'access_token',
+          'refresh_token',
+          'auth',
+          'cookie',
+          'cookies',
+        ]) {
+          final value = data[tokenKey];
+          if (value is String && value.isNotEmpty) return true;
+          if (value is Map && value.isNotEmpty) return true;
+        }
+        return false;
+      case 'getPlatform':
+        return _platformName;
+      case 'getLocale':
+        return _localeTag;
       default:
-        throw 'Host API 未实现: $method';
+        final fn = message['function'];
+        final label = fn == null ? '$method' : '$method/$fn';
+        logError('[host] 未实现 $label : key=${message['key']}');
+        throw 'Host API 未实现: $label';
     }
     return null;
   }
+
+  /// v4 UUID（createUuid 只要求"每次不同"）
+  static String _uuidV4() {
+    final random = math.Random.secure();
+    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    final hex = [for (final b in bytes) b.toRadixString(16).padLeft(2, '0')]
+        .join();
+    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
+        '${hex.substring(12, 16)}-${hex.substring(16, 20)}-'
+        '${hex.substring(20)}';
+  }
+
+  /// init.js 约定的平台名：android / ios / windows / macos / linux
+  static String get _platformName => switch (defaultTargetPlatform) {
+    TargetPlatform.android => 'android',
+    TargetPlatform.iOS => 'ios',
+    TargetPlatform.windows => 'windows',
+    TargetPlatform.macOS => 'macos',
+    TargetPlatform.linux => 'linux',
+    TargetPlatform.fuchsia => 'linux',
+  };
+
+  /// [languageCode]_[countryCode]，如 zh_CN
+  static String get _localeTag => ui.PlatformDispatcher.instance.locale
+      .toLanguageTag()
+      .replaceAll('-', '_');
 
   void dispose() {
     _engine?.close();

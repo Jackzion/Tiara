@@ -672,6 +672,47 @@ final class HostConvertProvider
 
 String _$hostConvertHash() => r'cf1ca56b0f04347b90a4f9caddfd3ba535541be3';
 
+@ProviderFor(hostHtml)
+final hostHtmlProvider = HostHtmlProvider._();
+
+final class HostHtmlProvider
+    extends $FunctionalProvider<HostHtml, HostHtml, HostHtml>
+    with $Provider<HostHtml> {
+  HostHtmlProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'hostHtmlProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$hostHtmlHash();
+
+  @$internal
+  @override
+  $ProviderElement<HostHtml> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  HostHtml create(Ref ref) {
+    return hostHtml(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(HostHtml value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<HostHtml>(value),
+    );
+  }
+}
+
+String _$hostHtmlHash() => r'1e0f8ef7de590cb73a5823b8f9d96fef11bbea6a';
+
 @ProviderFor(jsEngineService)
 final jsEngineServiceProvider = JsEngineServiceProvider._();
 
@@ -712,7 +753,7 @@ final class JsEngineServiceProvider
   }
 }
 
-String _$jsEngineServiceHash() => r'95c78dfbbe502955e2909c716172e99b9be39017';
+String _$jsEngineServiceHash() => r'6e949106ec2baf8aa41d6e40ddbc1cb6da8bdfe8';
 
 @ProviderFor(comicRepository)
 final comicRepositoryProvider = ComicRepositoryProvider._();

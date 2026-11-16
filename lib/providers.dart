@@ -16,6 +16,7 @@ import 'package:movies/services/comic_source/comic_rule_catalog.dart';
 import 'package:movies/services/commic/commic_image_loader.dart';
 import 'package:movies/services/js/comic_source_parser.dart';
 import 'package:movies/services/js/host_convert.dart';
+import 'package:movies/services/js/host_html.dart';
 import 'package:movies/services/js/host_network.dart';
 import 'package:movies/services/js/js_engine_service.dart';
 import 'package:movies/services/video_source/webview_video_source_service.dart';
@@ -41,7 +42,8 @@ AniListApiService anilistApiService(Ref ref) => AniListApiService();
 /// SharedPreferences 提供者
 /// 异步加载本地存储实例
 @Riverpod(keepAlive: true)
-Future<SharedPreferences> sharedPrefs(Ref ref) => SharedPreferences.getInstance();
+Future<SharedPreferences> sharedPrefs(Ref ref) =>
+    SharedPreferences.getInstance();
 
 /// Prefs 提供者
 /// 封装 SharedPreferences，提供类型安全的存储方法
@@ -58,18 +60,18 @@ IDatabase driftDatabase(Ref ref) => DriftDatabase();
 /// 动漫数据仓库提供者（取数 + 缓存，无页面状态）
 @Riverpod(keepAlive: true)
 AnimeRepository animeRepository(Ref ref) => AnimeRepository(
-      bangumiApiService: ref.read(bangumiApiServiceProvider),
-      aniListApiService: ref.read(anilistApiServiceProvider),
-      database: ref.read(driftDatabaseProvider),
-      prefs: ref.read(prefsProvider.future),
-    );
+  bangumiApiService: ref.read(bangumiApiServiceProvider),
+  aniListApiService: ref.read(anilistApiServiceProvider),
+  database: ref.read(driftDatabaseProvider),
+  prefs: ref.read(prefsProvider.future),
+);
 
 /// 收藏仓库提供者（收藏 CRUD + 内存缓存）
 @Riverpod(keepAlive: true)
 FavoriteRepository favoriteRepository(Ref ref) => FavoriteRepository(
-      database: ref.read(driftDatabaseProvider),
-      animeRepository: ref.read(animeRepositoryProvider),
-    );
+  database: ref.read(driftDatabaseProvider),
+  animeRepository: ref.read(animeRepositoryProvider),
+);
 
 /// 数据层就绪门：各仓库 setup（标签/收藏/补充缓存预热）完成后 UI 才渲染
 /// 替代原 AnimeViewModel.setup() 的启动编排
@@ -82,7 +84,7 @@ Future<void> dataReady(Ref ref) async {
 /// 无头 WebView 取流服务（应用级单例）
 /// keepAlive: 整个 App 生命周期内复用同一个 HeadlessWebview
 @Riverpod(keepAlive: true)
-WebviewVideoSourceService webviewVideoSourceService(Ref ref){
+WebviewVideoSourceService webviewVideoSourceService(Ref ref) {
   final service = WebviewVideoSourceService();
   // provider 被销毁时（极少见，keepAlive 一般活到 App 退出）顺带销毁 WebView
   ref.onDispose(() {
@@ -111,11 +113,14 @@ HostNetwork hostNetwork(Ref ref) => HostNetwork();
 HostConvert hostConvert(Ref ref) => HostConvert();
 
 @Riverpod(keepAlive: true)
+HostHtml hostHtml(Ref ref) => HostHtml();
+
+@Riverpod(keepAlive: true)
 JsEngineService jsEngineService(Ref ref) => JsEngineService(
   hostNetwork: ref.read(hostNetworkProvider),
   hostConvert: ref.read(hostConvertProvider),
+  hostHtml: ref.read(hostHtmlProvider),
 );
-
 
 @Riverpod(keepAlive: true)
 Future<ComicRepository> comicRepository(Ref ref) async {
@@ -123,6 +128,7 @@ Future<ComicRepository> comicRepository(Ref ref) async {
   await engine.ensureInit();
   final dir = await RuleCatalogService().ruleDir();
   final sources = <String, ComicSource>{};
+
   /// 遍历已经下载的所有规则 .js 文件
   await for (final entity in dir.list()) {
     if (entity is! File || !entity.path.endsWith('.js')) {
