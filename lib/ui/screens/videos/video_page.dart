@@ -22,7 +22,7 @@ import 'package:movies/utils/utils.dart';
 /// 使用 media_kit 播放预告片视频，支持播放控制
 @RoutePage(name: 'VideoPageRoute')
 class VideoPage extends ConsumerStatefulWidget {
-  /// 视频 ID 或播放地址
+  /// 视频 ID 或播放地址 - youtube tiler
   final String animeVideo;
 
   /// 视频播放上下文

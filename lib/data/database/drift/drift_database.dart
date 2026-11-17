@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:movies/data/database/drift/anime_database.dart';
 import 'package:movies/data/database/models/database_interface.dart';
 import 'package:movies/data/database/models/database_models.dart';
+import 'package:movies/data/database/models/library_models.dart';
 
 /// Drift 数据库实现
 class DriftDatabase implements IDatabase {
@@ -13,100 +14,161 @@ class DriftDatabase implements IDatabase {
 
   @override
   Future deleteDatabase() async {
+    // TODO: 目前只关连接；真正删库需要拿到 driftDatabase 的文件路径（drift_flutter
+    // 未暴露），等接入「清除数据」时再补。
     await animeDatabase.close();
   }
 
   @override
   Future<List<DBFavorite>> getFavorites() async {
-    final favorites = await animeDatabase.managers.driftFavorite.get();
-    return favorites
-        .map(
-          (favorite) => DBFavorite(
-            id: favorite.id,
-            animeId: favorite.animeId,
-            posterPath: favorite.posterPath,
-            bannerPath: favorite.bannerPath,
-            favorite: favorite.favorite,
-            popularity: favorite.popularity,
-            releaseDate: favorite.releaseDate,
-            title: favorite.title,
-            overview: favorite.overview,
-          ),
-        )
-        .toList();
-  }
-
-  @override
-  Future<List<DBAnimeGenre>> getGenres() async {
-    final genres = await animeDatabase.managers.driftGenre.get();
-    return genres
-        .map(
-          (genre) => DBAnimeGenre(
-            id: genre.id,
-            remoteId: genre.remoteId,
-            name: genre.name,
-          ),
-        )
-        .toList();
-  }
-
-  @override
-  Future<bool> removeFavorite(int id) async {
-    final count = await animeDatabase.driftFavorite
-        .deleteWhere((table) => table.id.equals(id));
-    return count > 0;
-  }
-
-  @override
-  Future saveFavorite(DBFavorite favorite) async {
-    await animeDatabase.managers.driftFavorite.create(
-      (_) => DriftFavoriteCompanion.insert(
-        animeId: favorite.animeId,
-        posterPath: favorite.posterPath,
-        bannerPath: Value(favorite.bannerPath),
-        favorite: favorite.favorite,
-        popularity: favorite.popularity,
-        releaseDate: favorite.releaseDate,
-        title: favorite.title,
-        overview: favorite.overview,
-      ),
-    );
-  }
-
-  @override
-  Future saveGenres(List<DBAnimeGenre> genres) async {
-    await animeDatabase.batch((batch) {
-      batch.insertAllOnConflictUpdate(
-        animeDatabase.driftGenre,
-        [
-          for (final genre in genres)
-            DriftGenreCompanion.insert(
-              remoteId: genre.remoteId,
-              name: genre.name,
-            ),
-        ],
-      );
-    });
+    final rows = await (animeDatabase.select(
+      animeDatabase.libraryEntry,
+    )..where((t) => t.favorite.equals(true))..orderBy([
+        (t) => OrderingTerm.desc(t.updatedAt),
+      ]))
+        .get();
+    return rows.map(_toFavorite).toList();
   }
 
   @override
   Stream<List<DBFavorite>> streamFavorites() {
-    return animeDatabase.managers.driftFavorite.watch().map(
-          (rows) => rows
-              .map(
-                (favorite) => DBFavorite(
-                  id: favorite.id,
-                  animeId: favorite.animeId,
-                  posterPath: favorite.posterPath,
-                  bannerPath: favorite.bannerPath,
-                  favorite: favorite.favorite,
-                  popularity: favorite.popularity,
-                  releaseDate: favorite.releaseDate,
-                  title: favorite.title,
-                  overview: favorite.overview,
-                ),
-              )
-              .toList(),
-        );
+    return (animeDatabase.select(animeDatabase.libraryEntry)
+          ..where((t) => t.favorite.equals(true))
+          ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
+        .watch()
+        .map((rows) => rows.map(_toFavorite).toList());
   }
+
+  @override
+  Future<bool> removeFavorite(int id) async {
+    final count = await (animeDatabase.delete(
+      animeDatabase.libraryEntry,
+    )..where((t) => t.id.equals(id))).go();
+    return count > 0;
+  }
+
+  /// 收藏：按 uid 幂等 upsert（同一部番重复收藏不会产生第二行）
+  @override
+  Future saveFavorite(DBFavorite favorite) async {
+    final now = DateTime.now();
+    await animeDatabase.into(animeDatabase.libraryEntry).insert(
+      LibraryEntryCompanion.insert(
+        uid: _animeUid(favorite.animeId),
+        type: 0,
+        bangumiId: Value(favorite.animeId),
+        title: favorite.title,
+        posterUrl: Value(favorite.posterPath),
+        favorite: Value(favorite.favorite),
+        createdAt: now,
+        updatedAt: now,
+      ),
+      onConflict: DoUpdate(
+        (old) => LibraryEntryCompanion(
+          bangumiId: Value(favorite.animeId),
+          title: Value(favorite.title),
+          posterUrl: Value(favorite.posterPath),
+          favorite: Value(favorite.favorite),
+          updatedAt: Value(now),
+        ),
+        target: [animeDatabase.libraryEntry.uid],
+      ),
+    );
+  }
+
+  /// 记录「续看/续读」：只更新播放定位与上下文，不动 favorite/createdAt
+  @override
+  Future savePlay(LibraryPlayUpdate update) async {
+    final now = DateTime.now();
+    await animeDatabase.into(animeDatabase.libraryEntry).insert(
+      LibraryEntryCompanion.insert(
+        uid: update.uid,
+        type: update.type,
+        bangumiId: Value(update.bangumiId),
+        title: update.title,
+        posterUrl: Value(update.posterUrl ?? ''),
+        favorite: const Value(false),
+        createdAt: now,
+        updatedAt: now,
+        sourceKey: Value(update.sourceKey),
+        remoteId: Value(update.remoteId),
+        detailUrl: Value(update.detailUrl),
+        ruleJson: Value(update.ruleJson),
+        roadsJson: Value(update.roadsJson),
+        playParamsJson: Value(update.playParamsJson),
+        lastRoadIndex: Value(update.lastRoadIndex),
+        lastEpisode: Value(update.lastEpisode),
+        lastEpisodeUrl: Value(update.lastEpisodeUrl),
+        lastUnitId: Value(update.lastUnitId),
+        lastUnitTitle: Value(update.lastUnitTitle),
+      ),
+      onConflict: DoUpdate(
+        (old) => LibraryEntryCompanion(
+          title: Value(update.title),
+          posterUrl: Value(update.posterUrl ?? ''),
+          sourceKey: Value(update.sourceKey),
+          remoteId: Value(update.remoteId),
+          detailUrl: Value(update.detailUrl),
+          ruleJson: Value(update.ruleJson),
+          roadsJson: Value(update.roadsJson),
+          playParamsJson: Value(update.playParamsJson),
+          lastRoadIndex: Value(update.lastRoadIndex),
+          lastEpisode: Value(update.lastEpisode),
+          lastEpisodeUrl: Value(update.lastEpisodeUrl),
+          lastUnitId: Value(update.lastUnitId),
+          lastUnitTitle: Value(update.lastUnitTitle),
+          updatedAt: Value(now),
+        ),
+        target: [animeDatabase.libraryEntry.uid],
+      ),
+    );
+  }
+
+  /// 最近播放/阅读（有进度指针的条目），用于「继续观看」
+  @override
+  Future<List<LibraryResume>> recentPlays({int limit = 20}) async {
+    final rows = await (animeDatabase.select(animeDatabase.libraryEntry)
+          ..where(
+            (t) => t.lastEpisode.isNotNull() | t.lastUnitId.isNotNull(),
+          )
+          ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])
+          ..limit(limit))
+        .get();
+    return rows.map(_toResume).toList();
+  }
+
+  static String _animeUid(int bangumiId) => 'anime:$bangumiId';
+
+  /// 旧 UI 模型映射：评分/简介/banner 不再持久化，回源获取
+  DBFavorite _toFavorite(LibraryEntryData row) => DBFavorite(
+    id: row.id,
+    animeId: row.bangumiId ?? 0,
+    posterPath: row.posterUrl,
+    bannerPath: null,
+    favorite: row.favorite,
+    popularity: 0,
+    releaseDate: row.updatedAt,
+    title: row.title,
+    overview: '',
+  );
+
+  LibraryResume _toResume(LibraryEntryData row) => LibraryResume(
+    id: row.id,
+    uid: row.uid,
+    type: row.type,
+    bangumiId: row.bangumiId,
+    title: row.title,
+    posterUrl: row.posterUrl,
+    updatedAt: row.updatedAt,
+    sourceKey: row.sourceKey,
+    remoteId: row.remoteId,
+    detailUrl: row.detailUrl,
+    ruleJson: row.ruleJson,
+    roadsJson: row.roadsJson,
+    playParamsJson: row.playParamsJson,
+    lastRoadIndex: row.lastRoadIndex,
+    lastEpisode: row.lastEpisode,
+    lastEpisodeUrl: row.lastEpisodeUrl,
+    lastUnitId: row.lastUnitId,
+    lastUnitTitle: row.lastUnitTitle,
+  );
 }
