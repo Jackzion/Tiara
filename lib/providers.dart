@@ -5,10 +5,13 @@ import 'package:movies/data/api/anilist_api_service.dart';
 import 'package:movies/data/api/bangumi_api_service.dart';
 import 'package:movies/data/database/drift/drift_database.dart';
 import 'package:movies/data/database/models/database_interface.dart';
+import 'package:movies/data/database/models/library_models.dart';
 import 'package:movies/data/models/comic_source.dart';
+import 'package:movies/data/repositories/anime_cache_repository.dart';
 import 'package:movies/data/repositories/anime_repository.dart';
 import 'package:movies/data/repositories/comic_repository.dart';
 import 'package:movies/data/repositories/favorite_repository.dart';
+import 'package:movies/data/repositories/library_repository.dart';
 import 'package:movies/data/repositories/rules_repository.dart';
 import 'package:movies/network/rule_engine.dart';
 import 'package:movies/router/app_routes.dart';
@@ -57,13 +60,12 @@ Future<Prefs> prefs(Ref ref) async {
 @Riverpod(keepAlive: true)
 IDatabase driftDatabase(Ref ref) => DriftDatabase();
 
-/// 动漫数据仓库提供者（取数 + 缓存，无页面状态）
+/// 动漫数据仓库提供者（取数 + 解析，无缓存）
 @Riverpod(keepAlive: true)
 AnimeRepository animeRepository(Ref ref) => AnimeRepository(
   bangumiApiService: ref.read(bangumiApiServiceProvider),
   aniListApiService: ref.read(anilistApiServiceProvider),
-  database: ref.read(driftDatabaseProvider),
-  prefs: ref.read(prefsProvider.future),
+  cache: ref.read(animeCacheRepositoryProvider),
 );
 
 /// 收藏仓库提供者（收藏 CRUD + 内存缓存）
@@ -73,12 +75,38 @@ FavoriteRepository favoriteRepository(Ref ref) => FavoriteRepository(
   animeRepository: ref.read(animeRepositoryProvider),
 );
 
+/// 书库仓库（收藏 + 续看指针；与 FavoriteRepository 共用同一张 library_entry）
+@Riverpod(keepAlive: true)
+LibraryRepository libraryRepository(Ref ref) =>
+    LibraryRepository(database: ref.read(driftDatabaseProvider));
+
+/// 详情快照缓存（SWR 的本地一侧）
+@Riverpod(keepAlive: true)
+AnimeCacheRepository animeCacheRepository(Ref ref) => AnimeCacheRepository(
+  database: ref.read(driftDatabaseProvider),
+  bangumiApiService: ref.read(bangumiApiServiceProvider),
+  aniListApiService: ref.read(anilistApiServiceProvider),
+  prefs: ref.read(prefsProvider.future),
+);
+
+/// 「继续观看」列表：有进度指针的条目，按最近播放排序
+@riverpod
+Future<List<LibraryResume>> recentPlays(Ref ref) =>
+    ref.watch(libraryRepositoryProvider).recentPlays();
+
+/// 详情页用：按 bangumiId 查续看信息（没有则为 null）
+@riverpod
+Future<LibraryResume?> animeResume(Ref ref, int bangumiId) =>
+    ref.watch(libraryRepositoryProvider).findAnime(bangumiId);
+
 /// 数据层就绪门：各仓库 setup（标签/收藏/补充缓存预热）完成后 UI 才渲染
 /// 替代原 AnimeViewModel.setup() 的启动编排
 @Riverpod(keepAlive: true)
 Future<void> dataReady(Ref ref) async {
   await ref.read(animeRepositoryProvider).setup();
   await ref.read(favoriteRepositoryProvider).setup();
+  // 每天一次的缓存滚动清理（失败不影响启动）
+  await ref.read(animeCacheRepositoryProvider).cleanupIfNeeded();
 }
 
 /// 无头 WebView 取流服务（应用级单例）

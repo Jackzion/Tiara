@@ -74,9 +74,27 @@ class _ComicReaderState extends ConsumerState<ComicReader> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _notifyVisible(0);
+      if (!mounted) return;
+      _notifyVisible(0);
+      _recordRead();
     });
     _loadFitMode();
+  }
+
+  /// 记录「上次读到哪一话」：只写本地书库，失败不影响阅读
+  void _recordRead() {
+    ref
+        .read(libraryRepositoryProvider)
+        .saveComicRead(
+          sourceKey: widget.sourceKey,
+          comicId: widget.comicId,
+          title: widget.title,
+          epId: widget.epId,
+          epTitle: widget.epTitle,
+        )
+        .catchError((Object error) {
+          debugPrint('saveComicRead failed: $error');
+        });
   }
 
   @override

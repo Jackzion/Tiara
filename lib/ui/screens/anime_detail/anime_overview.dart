@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:movies/data/database/models/library_models.dart';
+import 'package:movies/data/database/models/rules_model.dart';
+import 'package:movies/data/library/library_codec.dart';
 import 'package:movies/data/models/anime_details.dart';
 import 'package:movies/data/models/genre.dart';
 import 'package:movies/ui/theme/archive_tokens.dart';
@@ -20,6 +23,12 @@ class AnimeOverview extends StatefulWidget {
   /// 「开始观看」等：不带集号
   final VoidCallback? onWatchTap;
 
+  /// 本地书库里的续看信息（没有则为 null）
+  final LibraryResume? resume;
+
+  /// 续看：有存下来的上下文时，标题按钮变成「继续观看/继续阅读」
+  final VoidCallback? onResume;
+
   /// 宽屏两栏时为 true：
   final bool fillHeight;
 
@@ -33,6 +42,8 @@ class AnimeOverview extends StatefulWidget {
     this.onWatchTap,
     this.overlapHeight = 0,
     this.onTagTap,
+    this.resume,
+    this.onResume,
     this.fillHeight = false,
     this.synopsisHeight = 150,
   });
@@ -51,12 +62,33 @@ class _AnimeOverviewState extends State<AnimeOverview> {
       ? widget.details.chapterCount ?? 0
       : widget.details.episodes ?? 0;
 
+  /// 有续看数据时用存下来的线路替换 bangumi 的集数：
+  /// 这样章节格子和实际可播放的分集一一对应，而不是 bangumi 的条目集数。
+  List<Road> get _resumeRoads => decodeRoads(widget.resume?.roadsJson);
+
+  int get _resumeEpisodeCount {
+    final roads = _resumeRoads;
+    if (roads.isEmpty) return 0;
+    final index = (widget.resume?.lastRoadIndex ?? 0).clamp(
+      0,
+      roads.length - 1,
+    );
+    return roads[index].data.length;
+  }
+
+  bool get _hasResume =>
+      widget.resume != null &&
+      (widget.resume!.lastEpisode != null ||
+          (widget.resume!.lastUnitId?.isNotEmpty ?? false));
+
   @override
   Widget build(BuildContext context) {
     final details = widget.details;
     final genres = details.genres ?? <Genre>[];
     final synopsisLines = _splitSynopsis(details.synopsis ?? '');
-    final episodes = _episodes;
+    // 有本地线路时以线路集数为准，否则用 bangumi 的
+    final resumeCount = _resumeEpisodeCount;
+    final episodes = resumeCount > 0 ? resumeCount : _episodes;
 
     final synopsisChars = synopsisLines.fold<int>(0, (sum, line) => sum + line.length);
 
@@ -96,12 +128,24 @@ class _AnimeOverviewState extends State<AnimeOverview> {
           title: '章节',
           code: '02 / CHAPTERS',
           trailing: ArchivePillButton(
-            label: details.isBook ? '开始阅读' : '开始观看',
+            label: _hasResume
+                ? (details.isBook ? '继续阅读' : '继续观看')
+                : (details.isBook ? '开始阅读' : '开始观看'),
             icon: Icons.play_arrow_rounded,
             height: 40,
-            onPressed: widget.onWatchTap,
+            onPressed: _hasResume && widget.onResume != null
+                ? widget.onResume
+                : widget.onWatchTap,
           ),
         ),
+        if (_hasResume) ...[
+          const SizedBox(height: 8),
+          // 档案式的一行：上次看到哪（漫画显示话名，动画显示第 N 集）
+          ArchiveCode(
+            'LAST / ${widget.resume!.progressLabel}',
+            color: ArchivePalette.ink,
+          ),
+        ],
         const SizedBox(height: 14),
         if (episodes > 0) _buildChapterButtons(episodes),
         if (genres.isNotEmpty) ...[
@@ -141,6 +185,8 @@ class _AnimeOverviewState extends State<AnimeOverview> {
         for (var n = 1; n <= shown; n++)
           _ChapterChip(
             label: _pad(n),
+            // 上次看到的那一集用墨底标出来
+            highlight: n == widget.resume?.lastEpisode,
             onTap: () => widget.onEpisodeTap?.call(n),
           ),
         if (episodes > limit)
@@ -242,11 +288,17 @@ class _ExpandIcon extends StatelessWidget {
 }
 
 /// 章节号：纸底 mono 编号，悬停变深，没有渐变与投影。
+/// [highlight] 为 true 时用墨底奶白字标出「上次看到」的那一集。
 class _ChapterChip extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
+  final bool highlight;
 
-  const _ChapterChip({required this.label, required this.onTap});
+  const _ChapterChip({
+    required this.label,
+    required this.onTap,
+    this.highlight = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -255,11 +307,11 @@ class _ChapterChip extends StatelessWidget {
       width: 40,
       height: 30,
       child: Material(
-        color: tone.milk,
+        color: highlight ? tone.ink : tone.milk,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(ArchiveGeometry.coverRadius),
           side: BorderSide(
-            color: tone.hairline,
+            color: highlight ? tone.ink : tone.hairline,
             width: ArchiveGeometry.hairlineWidth,
           ),
         ),
@@ -274,7 +326,7 @@ class _ChapterChip extends StatelessWidget {
               label,
               style: ArchiveType.code.copyWith(
                 fontSize: 11,
-                color: tone.ink,
+                color: highlight ? tone.milk : tone.ink,
                 letterSpacing: 0.4,
               ),
             ),

@@ -2,6 +2,8 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lumberdash/lumberdash.dart';
+import 'package:movies/data/database/models/library_models.dart';
+import 'package:movies/data/library/library_codec.dart';
 import 'package:movies/data/models/anime_details.dart';
 import 'package:movies/data/models/play_context.dart';
 import 'package:movies/providers.dart';
@@ -118,6 +120,32 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
                     _buildTitleBlock(details),
+                    if (detailState.refreshFailed) ...[
+                      const SizedBox(height: 10),
+                      // SWR：刷新失败但旧数据可用 —— 只提示，不打断
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ArchiveCode(
+                              'STALE / 更新失败 · 显示 ${_staleLabel(detailState.fetchedAt)}',
+                              color: ArchivePalette.warning,
+                            ),
+                          ),
+                          ArchiveTextButton(
+                            onPressed: detailState.refreshing
+                                ? null
+                                : () => ref
+                                      .read(
+                                        animeDetailControllerProvider(
+                                          widget.animeId,
+                                        ).notifier,
+                                      )
+                                      .refresh(),
+                            child: const Text('重试'),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 26),
                     _buildPosterAndOverview(details),
                     const SizedBox(height: 28),
@@ -218,6 +246,9 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= 780;
 
+    // 本地书库里是否有「上次看到哪」；没有就一切照旧
+    final resume = ref.watch(animeResumeProvider(widget.animeId)).value;
+
     final posterAndMeta = _buildPosterColumn(
       details,
       isWide: isWide,
@@ -227,6 +258,8 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
       details: details,
       // 宽屏两栏：标签贴到栏底，与左栏元信息共底
       fillHeight: isWide,
+      resume: resume,
+      onResume: resume == null ? null : () => _resumePlay(resume, details),
       onEpisodeTap: (ep) => _openSourceSheet(details, preferredEpisode: ep),
       onWatchTap: () => details.isBook
           ? _openComicSourceSheet(details)
@@ -315,6 +348,59 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
 
   static String _compactNumber(int value) =>
       value >= 10000 ? '${(value / 10000).toStringAsFixed(1)} 万' : '$value';
+
+  /// 「显示的是哪天的存档」：MM-dd HH:mm
+  static String _staleLabel(DateTime? fetchedAt) {
+    if (fetchedAt == null) return '本地存档';
+    final local = fetchedAt.toLocal();
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${two(local.month)}-${two(local.day)} '
+        '${two(local.hour)}:${two(local.minute)}';
+  }
+
+  /// 续看/续读：有存下来的上下文就直接进播放器/阅读器，否则退回选源
+  Future<void> _resumePlay(LibraryResume resume, AnimeDetails details) async {
+    if (resume.isComic) {
+      final sourceKey = resume.sourceKey;
+      final comicId = resume.remoteId;
+      final epId = resume.lastUnitId;
+      if (sourceKey == null || comicId == null || epId == null) return;
+      await context.router.push(
+        ComicReaderRoute(
+          sourceKey: sourceKey,
+          comicId: comicId,
+          epId: epId,
+          title: resume.title,
+          epTitle: resume.lastUnitTitle ?? '',
+        ),
+      );
+      ref.invalidate(animeResumeProvider(widget.animeId));
+      return;
+    }
+
+    final rule = decodeRule(resume.ruleJson);
+    final roads = decodeRoads(resume.roadsJson);
+    if (rule == null || roads.isEmpty) {
+      // 上下文不完整（旧数据 / 规则被删）：重新选源，但把上次的集号带上
+      await _openSourceSheet(details, preferredEpisode: resume.lastEpisode);
+      return;
+    }
+    await context.router.push(
+      VideoPageRoute(
+        animeVideo: '',
+        playContext: PlayContext(
+          animeId: resume.bangumiId ?? widget.animeId,
+          title: resume.title,
+          detailUrl: resume.detailUrl ?? '',
+          roads: roads,
+          rule: rule,
+          preferredEpisode: resume.lastEpisode,
+          preferredRoadIndex: resume.lastRoadIndex,
+        ),
+      ),
+    );
+    ref.invalidate(animeResumeProvider(widget.animeId));
+  }
 
   /// 打开视频源选择器
   Future<void> _openSourceSheet(

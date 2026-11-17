@@ -20,6 +20,9 @@ class PlayContext {
   /// 用户在详情页点的集号（1-based）；Sheet 未指定则为 null
   final int? preferredEpisode;
 
+  /// 上次使用的线路下标（续看时优先用这条线路）
+  final int preferredRoadIndex;
+
   PlayContext({
     required this.animeId,
     required this.title,
@@ -27,23 +30,26 @@ class PlayContext {
     required this.roads,
     this.rule,              // ← 可选命名参数，不传就是 null
     this.preferredEpisode,
+    this.preferredRoadIndex = 0,
   });
 
   /// 解析「真正要播的集下标」：优先 preferredEpisode，否则第 1 集
   /// 返回 (roadIndex, episodeIndex)；无合法数据返回 null
-  (int, int)? resolveStartIndices({int roadIndex = 0}) {
+  (int, int)? resolveStartIndices({int? roadIndex}) {
     if (roads.isEmpty) return null;
-    // roadIndex 超界时取第 1 条
-    final road = roads[roadIndex < roads.length ? roadIndex : 0];
+    // 显式传入优先，否则用上次看的那条线路；超界回落到第 1 条
+    final target = roadIndex ?? preferredRoadIndex;
+    final safeRoad = target >= 0 && target < roads.length ? target : 0;
+    final road = roads[safeRoad];
     if (road.data.isEmpty) return null;
 
-    // preferredEpisode -> roadIndex
+    // preferredEpisode -> episodeIndex
     final ep = preferredEpisode;
     var episodeIndex = 0;
     if (ep != null && ep >= 1 && ep <= road.data.length) {
       episodeIndex = ep - 1;
     }
-    return (roadIndex < roads.length ? roadIndex : 0, episodeIndex);
+    return (safeRoad, episodeIndex);
   }
 
     /// 按下标取分集页 URL
