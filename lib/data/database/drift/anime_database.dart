@@ -8,7 +8,6 @@ class LibraryEntry extends Table {
   /// 自增行 id：兼容 UI 侧按 int id 删除的旧接口
   IntColumn get id => integer().autoIncrement()();
 
-  /// 稳定身份，见类注释
   TextColumn get uid => text().unique()();
 
   /// 0 = 动画，1 = 漫画/小说（与 bangumi subjectType 的 isBook 对齐）
@@ -55,8 +54,25 @@ class LibraryEntry extends Table {
   DateTimeColumn get updatedAt => dateTime()();
 }
 
+/// 详情快照缓存（**纯缓存**，可整条删除）。
+///
+/// 与 library_entry 分开的原因：
+/// - 用户数据（收藏/续看）永不被清理；
+/// - 这里只放"浏览过的条目"，按 7 天滚动窗口 + 容量上限淘汰。
+class SubjectCache extends Table {
+  IntColumn get bangumiId => integer()();
+
+  /// {"v":1,"subject":{...},"extras":{...},"characters":[...]}
+  TextColumn get payloadJson => text()();
+
+  DateTimeColumn get fetchedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {bangumiId};
+}
+
 @DriftDatabase(
-  tables: [LibraryEntry],
+  tables: [LibraryEntry, SubjectCache],
 )
 class AnimeDatabase extends _$AnimeDatabase {
   /// driftDatabase 负责平台切换：
@@ -76,7 +92,7 @@ class AnimeDatabase extends _$AnimeDatabase {
   AnimeDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -106,6 +122,10 @@ class AnimeDatabase extends _$AnimeDatabase {
       if (from < 3) {
         // 标签表没有消费方，直接丢弃（分类数据本来就来自远端，不落库）
         await customStatement('DROP TABLE IF EXISTS drift_genre');
+      }
+      if (from < 4) {
+        // 详情快照缓存：独立表，与用户数据分离，便于整表清理
+        await m.createTable(subjectCache);
       }
     },
   );
