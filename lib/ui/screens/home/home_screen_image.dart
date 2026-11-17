@@ -174,7 +174,7 @@ class _HomeScreenImageState extends ConsumerState<HomeScreenImage> {
     return GestureDetector(
       onTap: () => openDetail(anime),
       child: Hero(
-        tag: '${anime.image}swiper',
+        tag: 'carousel-${anime.bangumiId}',
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: animationTime),
           child: Container(
@@ -411,7 +411,7 @@ class _HomeScreenImageState extends ConsumerState<HomeScreenImage> {
 
   /// 跳转到动漫详情页
   void openDetail(Anime anime) {
-    widget.onAnimeTap(anime.animeId, '${anime.image}swiper');
+    widget.onAnimeTap(anime.animeId, 'carousel-${anime.bangumiId}');
   }
 
   /// 切换到指定缩略图，重置自动轮播计时器

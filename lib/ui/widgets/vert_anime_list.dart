@@ -56,7 +56,11 @@ class VerticalAnimeList extends StatelessWidget {
             ),
             delegate: SliverChildBuilderDelegate(
               (context, index) =>
-                  AnimeGridTile(anime: animes[index], onAnimeTap: onAnimeTap),
+                  AnimeGridTile(
+              anime: animes[index],
+              heroTag: 'grid-$index-${animes[index].bangumiId}',
+              onAnimeTap: onAnimeTap,
+            ),
               childCount: animes.length,
             ),
           ),
@@ -65,7 +69,11 @@ class VerticalAnimeList extends StatelessWidget {
         return SliverList(
           delegate: SliverChildBuilderDelegate(
             (context, index) =>
-                AnimeRow(anime: animes[index], onAnimeTap: onAnimeTap),
+                AnimeRow(
+              anime: animes[index],
+              heroTag: 'vrow-$index-${animes[index].bangumiId}',
+              onAnimeTap: onAnimeTap,
+            ),
             childCount: animes.length,
           ),
         );

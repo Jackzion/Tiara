@@ -35,11 +35,16 @@ class AnimeWidget extends ConsumerStatefulWidget {
   final AnimeType animeType;
   final bool expanded;
 
+  /// 显式 Hero tag：调用方按「栏目 + 下标」生成，保证同一路由内唯一。
+  /// 传 null 时退回 bangumiId，避免封面 URL 相同导致撞车。
+  final String? heroTag;
+
   const AnimeWidget({
     required this.anime,
     required this.onAnimeTap,
     required this.animeType,
     this.expanded = false,
+    this.heroTag,
     super.key,
   });
 
@@ -48,12 +53,13 @@ class AnimeWidget extends ConsumerStatefulWidget {
 }
 
 class _AnimeWidgetState extends ConsumerState<AnimeWidget> {
-  late String uniqueHeroTag;
+  late final String uniqueHeroTag =
+      widget.heroTag ??
+      'anime-${widget.anime.bangumiId}-${widget.animeType.name}';
 
   @override
   void initState() {
     super.initState();
-    uniqueHeroTag = widget.anime.imageUrl + widget.animeType.name;
     ref.read(animeRepositoryProvider).ensureExtras(widget.anime).then((_) {
       if (mounted) {
         setState(() {});

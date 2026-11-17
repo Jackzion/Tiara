@@ -173,6 +173,8 @@ class _HorizontalAnimesState extends State<HorizontalAnimes> {
             onAnimeTap: widget.onAnimeTap,
             animeType: widget.animeType,
             expanded: expanded,
+            // 同一部番可能出现在多个栏目 → tag 带栏目与下标，保证唯一
+            heroTag: 'home-${widget.animeType.name}-$index-${anime.bangumiId}',
           ),
         ),
       ),

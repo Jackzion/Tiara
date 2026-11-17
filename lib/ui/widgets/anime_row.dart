@@ -131,7 +131,15 @@ class AnimeRow extends ConsumerStatefulWidget {
   final Anime anime;
   final OnAnimeTap onAnimeTap;
 
-  const AnimeRow({required this.anime, required this.onAnimeTap, super.key});
+  /// 显式 Hero tag（列表按 index 生成，避免重复条目撞车）
+  final String? heroTag;
+
+  const AnimeRow({
+    required this.anime,
+    required this.onAnimeTap,
+    this.heroTag,
+    super.key,
+  });
 
   @override
   ConsumerState<AnimeRow> createState() => _AnimeRowState();
@@ -141,7 +149,7 @@ class _AnimeRowState extends ConsumerState<AnimeRow> {
   @override
   Widget build(BuildContext context) {
     final anime = widget.anime;
-    final heroTag = '${anime.image}AnimeRow';
+    final heroTag = widget.heroTag ?? 'vrow-${anime.bangumiId}';
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => widget.onAnimeTap(anime.animeId, heroTag),
@@ -381,15 +389,19 @@ class AnimeGridTile extends StatelessWidget {
   final Anime anime;
   final OnAnimeTap onAnimeTap;
 
+  /// 显式 Hero tag（网格按 index 生成，避免重复条目撞车）
+  final String? heroTag;
+
   const AnimeGridTile({
     required this.anime,
     required this.onAnimeTap,
+    this.heroTag,
     super.key,
   });
 
   @override
   Widget build(BuildContext context) {
-    final heroTag = '${anime.image}AnimeGrid';
+    final heroTag = this.heroTag ?? 'grid-${anime.bangumiId}';
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => onAnimeTap(anime.animeId, heroTag),
