@@ -1,3 +1,5 @@
+import 'package:drift/drift.dart';
+import 'package:lumberdash/lumberdash.dart';
 import 'package:movies/data/database/models/database_interface.dart';
 import 'package:movies/data/database/models/library_models.dart';
 import 'package:movies/data/library/library_codec.dart';
@@ -18,6 +20,7 @@ class LibraryRepository {
     required PlayContext play,
     required int roadIndex,
     required int episodeIndex,
+    String? posterUrl,
   }) async {
     if (play.rule == null || play.roads.isEmpty) return;
     final safeRoad = roadIndex.clamp(0, play.roads.length - 1);
@@ -36,8 +39,10 @@ class LibraryRepository {
         lastRoadIndex: safeRoad,
         lastEpisode: safeEpisode + 1,
         lastEpisodeUrl: road.data[safeEpisode],
+        posterUrl: posterUrl
       ),
     );
+    logMessage("LibraryRepository.saveAnimePlay: $play $roadIndex $episodeIndex $posterUrl");
   }
 
   /// 进入漫画阅读器时调用：记住上次读到的那一话。
@@ -47,6 +52,7 @@ class LibraryRepository {
     required String title,
     required String epId,
     required String epTitle,
+    String? posterUrl
   }) async {
     if (sourceKey.isEmpty || comicId.isEmpty || epId.isEmpty) return;
     await database.savePlay(
@@ -58,6 +64,7 @@ class LibraryRepository {
         remoteId: comicId,
         lastUnitId: epId,
         lastUnitTitle: epTitle,
+        posterUrl: posterUrl
       ),
     );
   }

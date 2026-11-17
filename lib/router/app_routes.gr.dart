@@ -76,6 +76,7 @@ class ComicReaderRoute extends PageRouteInfo<ComicReaderRouteArgs> {
     required String title,
     String epTitle = '',
     Key? key,
+    AnimeDetails? animeDetail,
     List<PageRouteInfo>? children,
   }) : super(
          ComicReaderRoute.name,
@@ -86,6 +87,7 @@ class ComicReaderRoute extends PageRouteInfo<ComicReaderRouteArgs> {
            title: title,
            epTitle: epTitle,
            key: key,
+           animeDetail: animeDetail,
          ),
          initialChildren: children,
        );
@@ -103,6 +105,7 @@ class ComicReaderRoute extends PageRouteInfo<ComicReaderRouteArgs> {
         title: args.title,
         epTitle: args.epTitle,
         key: args.key,
+        animeDetail: args.animeDetail,
       );
     },
   );
@@ -116,6 +119,7 @@ class ComicReaderRouteArgs {
     required this.title,
     this.epTitle = '',
     this.key,
+    this.animeDetail,
   });
 
   final String sourceKey;
@@ -130,9 +134,11 @@ class ComicReaderRouteArgs {
 
   final Key? key;
 
+  final AnimeDetails? animeDetail;
+
   @override
   String toString() {
-    return 'ComicReaderRouteArgs{sourceKey: $sourceKey, comicId: $comicId, epId: $epId, title: $title, epTitle: $epTitle, key: $key}';
+    return 'ComicReaderRouteArgs{sourceKey: $sourceKey, comicId: $comicId, epId: $epId, title: $title, epTitle: $epTitle, key: $key, animeDetail: $animeDetail}';
   }
 
   @override
@@ -144,7 +150,8 @@ class ComicReaderRouteArgs {
         epId == other.epId &&
         title == other.title &&
         epTitle == other.epTitle &&
-        key == other.key;
+        key == other.key &&
+        animeDetail == other.animeDetail;
   }
 
   @override
@@ -154,7 +161,8 @@ class ComicReaderRouteArgs {
       epId.hashCode ^
       title.hashCode ^
       epTitle.hashCode ^
-      key.hashCode;
+      key.hashCode ^
+      animeDetail.hashCode;
 }
 
 /// generated route for
@@ -227,6 +235,7 @@ class VideoPageRoute extends PageRouteInfo<VideoPageRouteArgs> {
   VideoPageRoute({
     required String animeVideo,
     required PlayContext? playContext,
+    required AnimeDetails? animeDetail,
     Key? key,
     List<PageRouteInfo>? children,
   }) : super(
@@ -234,6 +243,7 @@ class VideoPageRoute extends PageRouteInfo<VideoPageRouteArgs> {
          args: VideoPageRouteArgs(
            animeVideo: animeVideo,
            playContext: playContext,
+           animeDetail: animeDetail,
            key: key,
          ),
          initialChildren: children,
@@ -245,7 +255,12 @@ class VideoPageRoute extends PageRouteInfo<VideoPageRouteArgs> {
     name,
     builder: (data) {
       final args = data.argsAs<VideoPageRouteArgs>();
-      return VideoPage(args.animeVideo, args.playContext, key: args.key);
+      return VideoPage(
+        args.animeVideo,
+        args.playContext,
+        args.animeDetail,
+        key: args.key,
+      );
     },
   );
 }
@@ -254,6 +269,7 @@ class VideoPageRouteArgs {
   const VideoPageRouteArgs({
     required this.animeVideo,
     required this.playContext,
+    required this.animeDetail,
     this.key,
   });
 
@@ -261,11 +277,13 @@ class VideoPageRouteArgs {
 
   final PlayContext? playContext;
 
+  final AnimeDetails? animeDetail;
+
   final Key? key;
 
   @override
   String toString() {
-    return 'VideoPageRouteArgs{animeVideo: $animeVideo, playContext: $playContext, key: $key}';
+    return 'VideoPageRouteArgs{animeVideo: $animeVideo, playContext: $playContext, animeDetail: $animeDetail, key: $key}';
   }
 
   @override
@@ -274,9 +292,14 @@ class VideoPageRouteArgs {
     if (other is! VideoPageRouteArgs) return false;
     return animeVideo == other.animeVideo &&
         playContext == other.playContext &&
+        animeDetail == other.animeDetail &&
         key == other.key;
   }
 
   @override
-  int get hashCode => animeVideo.hashCode ^ playContext.hashCode ^ key.hashCode;
+  int get hashCode =>
+      animeVideo.hashCode ^
+      playContext.hashCode ^
+      animeDetail.hashCode ^
+      key.hashCode;
 }

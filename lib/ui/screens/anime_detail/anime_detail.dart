@@ -44,7 +44,7 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
     final dataReadyAsync = ref.watch(dataReadyProvider);
     return dataReadyAsync.when(
       error: (e, st) => ArchiveLoadError(message: e.toString()),
-      loading: () => const NotReady(),
+      loading: () => NotReady(animeId: widget.animeId.toString()),
       data: (_) => buildScreen(),
     );
   }
@@ -54,7 +54,7 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
       animeDetailControllerProvider(widget.animeId),
     );
     return detailAsync.when(
-      loading: () => const NotReady(),
+      loading: () => NotReady(animeId: widget.animeId.toString()),
       error: (e, st) {
         logMessage('Error: ${e.toString()}');
         return NetErrorView(
@@ -66,7 +66,7 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
       },
       data: (detailState) {
         if (detailState.animeDetails == null) {
-          return const NotReady();
+          return NotReady(animeId: widget.animeId.toString());
         }
         return buildDetailScreen(detailState);
       },
@@ -185,6 +185,7 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
                             VideoPageRoute(
                               animeVideo: video.youtubeId ?? '',
                               playContext: playContext,
+                              animeDetail: detailState.animeDetails,
                             ),
                           );
                         },
@@ -397,6 +398,7 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
           preferredEpisode: resume.lastEpisode,
           preferredRoadIndex: resume.lastRoadIndex,
         ),
+        animeDetail: details,
       ),
     );
     ref.invalidate(animeResumeProvider(widget.animeId));
@@ -427,7 +429,11 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
 
     debugPrint('[Phase4] PlayContext => $playContext');
     context.router.push(
-      VideoPageRoute(animeVideo: '', playContext: playContext),
+      VideoPageRoute(
+        animeVideo: '',
+        playContext: playContext,
+        animeDetail: details,
+      ),
     );
   }
 
@@ -455,6 +461,7 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
         epId: selection.epId,
         title: selection.title,
         epTitle: selection.epTitle,
+        animeDetail: details
       ),
     );
   }

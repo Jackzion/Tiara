@@ -105,7 +105,9 @@ class DriftDatabase implements IDatabase {
       onConflict: DoUpdate(
         (old) => LibraryEntryCompanion(
           title: Value(update.title),
-          posterUrl: Value(update.posterUrl ?? ''),
+          posterUrl: update.posterUrl != null
+              ? Value(update.posterUrl!)
+              : const Value.absent(),
           sourceKey: Value(update.sourceKey),
           remoteId: Value(update.remoteId),
           detailUrl: Value(update.detailUrl),

@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:movies/data/models/anime_details.dart';
 import 'package:movies/data/models/play_context.dart';
 import 'package:movies/ui/main_screen.dart';
 import 'package:movies/ui/screens/comic_reader/comic_reader.dart';

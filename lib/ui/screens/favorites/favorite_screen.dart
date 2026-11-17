@@ -206,6 +206,7 @@ class _FavoriteScreenState extends ConsumerState<FavoriteScreen> {
           preferredEpisode: resume.lastEpisode,
           preferredRoadIndex: resume.lastRoadIndex,
         ),
+        animeDetail: null
       ),
     );
   }

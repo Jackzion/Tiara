@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:movies/data/models/anime_details.dart';
 import 'package:movies/data/models/play_context.dart';
 import 'package:movies/providers.dart';
 import 'package:movies/services/video_source/video_source.dart';
@@ -24,7 +25,9 @@ class VideoPage extends ConsumerStatefulWidget {
   /// 视频播放上下文
   final PlayContext? playContext;
 
-  const VideoPage(this.animeVideo, this.playContext, {super.key});
+  final AnimeDetails? animeDetail;
+
+  const VideoPage(this.animeVideo, this.playContext, this.animeDetail, {super.key});
   @override
   ConsumerState<VideoPage> createState() => _VideoPageState();
 }
@@ -515,6 +518,7 @@ class _VideoPageState extends ConsumerState<VideoPage> {
             play: play,
             roadIndex: _roadIndex,
             episodeIndex: _episodeIndex,
+            posterUrl: widget.animeDetail?.image,
           )
           .catchError((Object error) {
             debugPrint('saveAnimePlay failed: $error');

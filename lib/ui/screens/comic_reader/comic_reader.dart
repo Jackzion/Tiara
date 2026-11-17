@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:movies/data/models/anime_details.dart';
 import 'package:movies/data/models/comic_source.dart';
 import 'package:movies/providers.dart';
 import 'package:movies/router/app_routes.dart';
@@ -21,8 +22,7 @@ enum ComicFitMode {
   final String label;
   final BoxFit fit;
 
-  static ComicFitMode parse(String? raw) =>
-      raw == width.name ? width : contain;
+  static ComicFitMode parse(String? raw) => raw == width.name ? width : contain;
 }
 
 /// 设置键：图片适配模式（Prefs 持久化）
@@ -39,11 +39,13 @@ class ComicReader extends ConsumerStatefulWidget {
     required this.title,
     this.epTitle = '',
     super.key,
+    this.animeDetail,
   });
 
   final String sourceKey;
   final String comicId;
   final String epId;
+  final AnimeDetails? animeDetail;
 
   /// 漫画标题（章名未加载出时的顶栏兜底）
   final String title;
@@ -91,6 +93,7 @@ class _ComicReaderState extends ConsumerState<ComicReader> {
           title: widget.title,
           epId: widget.epId,
           epTitle: widget.epTitle,
+          posterUrl: widget.animeDetail?.imageUrl
         )
         .catchError((Object error) {
           debugPrint('saveComicRead failed: $error');
@@ -113,20 +116,23 @@ class _ComicReaderState extends ConsumerState<ComicReader> {
 
   void _toggleFitMode() {
     setState(() {
-      _fitMode =
-          _fitMode == ComicFitMode.contain ? ComicFitMode.width : ComicFitMode.contain;
+      _fitMode = _fitMode == ComicFitMode.contain
+          ? ComicFitMode.width
+          : ComicFitMode.contain;
     });
-    ref.read(prefsProvider.future).then(
-          (prefs) => prefs.setString(_comicFitModeKey, _fitMode.name),
-        );
+    ref
+        .read(prefsProvider.future)
+        .then((prefs) => prefs.setString(_comicFitModeKey, _fitMode.name));
   }
 
   void _notifyVisible(int index) {
     ref
         .read(
           comicReaderControllerProvider(
-                  widget.sourceKey, widget.comicId, widget.epId)
-              .notifier,
+            widget.sourceKey,
+            widget.comicId,
+            widget.epId,
+          ).notifier,
         )
         .notifyVisible(index);
   }
@@ -143,7 +149,11 @@ class _ComicReaderState extends ConsumerState<ComicReader> {
   @override
   Widget build(BuildContext context) {
     final readerAsync = ref.watch(
-      comicReaderControllerProvider(widget.sourceKey, widget.comicId, widget.epId),
+      comicReaderControllerProvider(
+        widget.sourceKey,
+        widget.comicId,
+        widget.epId,
+      ),
     );
     final state = readerAsync.value;
     return Scaffold(
@@ -158,7 +168,10 @@ class _ComicReaderState extends ConsumerState<ComicReader> {
                 message: '$e',
                 onRetry: () => ref.invalidate(
                   comicReaderControllerProvider(
-                      widget.sourceKey, widget.comicId, widget.epId),
+                    widget.sourceKey,
+                    widget.comicId,
+                    widget.epId,
+                  ),
                 ),
               ),
               data: _buildGallery,
@@ -177,7 +190,9 @@ class _ComicReaderState extends ConsumerState<ComicReader> {
                 child: _TopBar(
                   title: state != null && state.chapterTitle.isNotEmpty
                       ? state.chapterTitle
-                      : (widget.epTitle.isNotEmpty ? widget.epTitle : widget.title),
+                      : (widget.epTitle.isNotEmpty
+                            ? widget.epTitle
+                            : widget.title),
                   pageLabel: _pageLabel(state),
                   onBack: () => ref.read(appRouterProvider).maybePop(),
                 ),
@@ -307,10 +322,7 @@ class _TopBar extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Row(
             children: [
-              IconButton(
-                onPressed: onBack,
-                icon: const Icon(Icons.arrow_back),
-              ),
+              IconButton(onPressed: onBack, icon: const Icon(Icons.arrow_back)),
               Expanded(
                 child: Text(
                   title,
@@ -408,10 +420,7 @@ class _NextChapterPage extends StatelessWidget {
         children: [
           const Icon(Icons.menu_book, color: iconPlaceholder, size: 48),
           const SizedBox(height: 16),
-          FilledButton(
-            onPressed: onTap,
-            child: Text('下一章 · $title'),
-          ),
+          FilledButton(onPressed: onTap, child: Text('下一章 · $title')),
         ],
       ),
     );
@@ -476,11 +485,11 @@ class _ComicPageViewState extends State<_ComicPageView> {
 
   // imageLoader 加载图片
   Future<File> _load() => widget.loader.ensure(
-        widget.page,
-        sourceKey: widget.sourceKey,
-        comicId: widget.comicId,
-        epId: widget.epId,
-      );
+    widget.page,
+    sourceKey: widget.sourceKey,
+    comicId: widget.comicId,
+    epId: widget.epId,
+  );
 
   // 删缓存重试
   void _retry() {
