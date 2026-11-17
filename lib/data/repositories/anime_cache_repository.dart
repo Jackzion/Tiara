@@ -49,10 +49,12 @@ class AnimeCacheRepository {
   }
 
   /// 本地优先；未命中才等网络。并发调用复用同一请求。
-  Future<DetailSnapshot> load(int bangumiId) =>
-      _inflight[bangumiId] ??= _load(bangumiId).whenComplete(
-        () => _inflight.remove(bangumiId),
-      );
+  Future<DetailSnapshot> load(int bangumiId) => _inflight.putIfAbsent(
+    bangumiId,
+    () => _load(bangumiId).whenComplete(() {
+      _inflight.remove(bangumiId);
+    }),
+  );
 
   /// 强制刷新（手动重试 / TTL 过期后的后台刷新）
   Future<DetailSnapshot> refresh(int bangumiId) =>
@@ -191,6 +193,5 @@ class AnimeCacheRepository {
     } catch (e) {
       logError('subject cache cleanup failed: $e');
     }
-    await p.setString(_cleanupKey, now.toIso8601String());
   }
 }
