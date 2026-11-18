@@ -127,6 +127,7 @@ class _HomeScreenImageState extends ConsumerState<HomeScreenImage> {
           imageFilter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
           child: CachedNetworkImage(
             imageUrl: url,
+            memCacheWidth: 1280,
             fit: BoxFit.cover,
             width: double.infinity,
             height: double.infinity,
@@ -194,6 +195,7 @@ class _HomeScreenImageState extends ConsumerState<HomeScreenImage> {
             clipBehavior: Clip.antiAlias,
             child: CachedNetworkImage(
               imageUrl: anime.image,
+              memCacheWidth: 520,
               fit: BoxFit.cover,
             ),
           ),
@@ -383,6 +385,7 @@ class _HomeScreenImageState extends ConsumerState<HomeScreenImage> {
             children: [
               CachedNetworkImage(
                 imageUrl: anime.image,
+                memCacheWidth: 180,
                 fit: BoxFit.cover,
                 height: thumbImageHeight,
                 width: thumbWidth,

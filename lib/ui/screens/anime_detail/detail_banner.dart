@@ -65,6 +65,7 @@ class _DetailBannerState extends State<DetailBanner>
               opacity: _animation,
               child: CachedNetworkImage(
                 imageUrl: imageUrl,
+            memCacheWidth: 1280,
                 alignment: Alignment.topCenter,
                 fit: BoxFit.cover,
                 placeholder: (context, url) => ColoredBox(color: tone.raised),

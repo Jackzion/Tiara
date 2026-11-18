@@ -62,7 +62,12 @@ class _VideoPageState extends ConsumerState<VideoPage> {
     super.initState();
     // 直接用 media_kit,Windows desktop 上最稳的视频方案
     // (pod_player 就是包了一层 media_kit,直接用更可控)
-    player = Player();
+    player = Player(
+      configuration: const PlayerConfiguration(
+        // 默认 32MB；流媒体 16MB 足够，省一大截 mpv 缓冲
+        bufferSize: 16 << 20,
+      ),
+    );
     controller = VideoController(player);
 
     // 接住播放错误,避免卡死 UI

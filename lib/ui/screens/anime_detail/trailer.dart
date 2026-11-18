@@ -55,6 +55,7 @@ class Trailer extends StatelessWidget {
                         frame(
                           CachedNetworkImage(
                             imageUrl: video.thumbnailUrl,
+            memCacheWidth: 640,
                             fit: BoxFit.cover,
                             placeholder: (context, url) =>
                                 ColoredBox(color: tone.raised),

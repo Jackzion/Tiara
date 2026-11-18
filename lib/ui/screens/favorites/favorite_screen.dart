@@ -247,6 +247,7 @@ class _ResumeCard extends StatelessWidget {
                   ? Icon(Icons.movie_filter_outlined, color: tone.muted, size: 22)
                   : Image.network(
                       resume.posterUrl!,
+                      cacheWidth: 240,
                       fit: BoxFit.cover,
                       errorBuilder: (_, _, _) => Icon(
                         Icons.broken_image_outlined,

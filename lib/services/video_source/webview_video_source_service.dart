@@ -28,6 +28,11 @@ class WebviewVideoSourceService{
   /// 服务是否已销毁；销毁后拒绝新的 parse
   bool _disposed = false;
 
+  /// 空闲回收：WebView2 常驻几十上百 MB，一段时间不用就释放
+  Timer? _idleTimer;
+
+  static const _idleRelease = Duration(seconds: 60);
+
 
   /// 解析分集页，返回可直接播放的直链。
   /// [pageUrl] 分集 HTML 页地址（不是 m3u8 本身）。
@@ -138,6 +143,33 @@ class WebviewVideoSourceService{
       if (identical(_activeRequest, request)) {
         _activeRequest = null;
       }
+      _scheduleIdleRelease();
+    }
+  }
+
+  /// 解析结束后延迟释放 WebView：不销毁服务本身，只释放 WebView 资源。
+  /// 有在途任务时跳过，等它自己结束时再排一次。
+  void _scheduleIdleRelease() {
+    _idleTimer?.cancel();
+    _idleTimer = Timer(_idleRelease, () {
+      if (_activeRequest != null) {
+        _scheduleIdleRelease();
+        return;
+      }
+      unawaited(_releaseWebview());
+    });
+  }
+
+  Future<void> _releaseWebview() async {
+    final wv = _webview;
+    if (wv == null) return;
+    _webview = null;
+    await _unloadPage();
+    try {
+      await wv.dispose();
+      debugPrint('[VideoSource] idle release webview');
+    } catch (e) {
+      debugPrint('[VideoSource] idle release error: ');
     }
   }
 

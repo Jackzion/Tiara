@@ -109,6 +109,7 @@ class _AnimeWidgetState extends ConsumerState<AnimeWidget> {
       clipBehavior: Clip.antiAlias,
       child: CachedNetworkImage(
         imageUrl: imageUrl,
+            memCacheWidth: 640,
         fit: BoxFit.cover,
         errorWidget: (context, url, error) => buildFallback(context),
       ),

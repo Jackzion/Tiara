@@ -36,6 +36,7 @@ class FavoriteRow extends StatelessWidget {
               child: imageUrl.isNotEmpty
                   ? CachedNetworkImage(
                       imageUrl: imageUrl,
+            memCacheWidth: 240,
                       alignment: Alignment.topCenter,
                       fit: BoxFit.cover,
                       height: 140,

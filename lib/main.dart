@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:colorize_lumberdash/colorize_lumberdash.dart';
 import 'package:desktop_window/desktop_window.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lumberdash/lumberdash.dart';
@@ -20,6 +22,23 @@ void main() async {
   // pod_player 在 Windows/Linux/macOS 底层用 media_kit,
   // 必须显式初始化，否则视频播放会直接报 "Error while playing video"
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 图像解码缓存封顶：默认 100 MiB / 1000 张，对 1900px 的 AniList 横幅太宽松
+  final imageCache = PaintingBinding.instance.imageCache;
+  imageCache.maximumSize = 300;
+  imageCache.maximumSizeBytes = 64 << 20;
+
+  // debug 下每 30s 打一次内存概况，方便对比优化前后（release 不执行）
+  if (kDebugMode) {
+    Timer.periodic(const Duration(seconds: 30), (_) {
+      final cache = PaintingBinding.instance.imageCache;
+      debugPrint(
+        '[mem] rss=${ProcessInfo.currentRss ~/ (1 << 20)}MB '
+        'imageCache=${cache.currentSizeBytes ~/ (1 << 20)}MB '
+        'cached=${cache.currentSize} live=${cache.liveImageCount}',
+      );
+    });
+  }
   MediaKit.ensureInitialized();
 
   // set window options before show

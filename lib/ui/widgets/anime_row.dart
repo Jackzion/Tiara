@@ -192,6 +192,7 @@ class _AnimeRowState extends ConsumerState<AnimeRow> {
           child: anime.image.isNotEmpty
               ? CachedNetworkImage(
                   imageUrl: anime.image,
+            memCacheWidth: 240,
                   fit: BoxFit.cover,
                   placeholder: (context, url) => Container(color: buttonGrey),
                   errorWidget: (context, url, error) => Container(
@@ -417,6 +418,7 @@ class AnimeGridTile extends StatelessWidget {
                 child: anime.image.isNotEmpty
                     ? CachedNetworkImage(
                         imageUrl: anime.image,
+            memCacheWidth: 240,
                         fit: BoxFit.cover,
                         placeholder: (context, url) =>
                             Container(color: buttonGrey),

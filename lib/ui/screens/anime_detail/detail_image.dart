@@ -69,6 +69,7 @@ class _DetailImageState extends State<DetailImage>
             opacity: _animation,
             child: CachedNetworkImage(
               imageUrl: imageUrl,
+            memCacheWidth: 520,
               fit: BoxFit.cover,
               alignment: Alignment.topCenter,
               width: double.infinity,

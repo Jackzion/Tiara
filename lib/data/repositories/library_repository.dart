@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart';
 import 'package:lumberdash/lumberdash.dart';
 import 'package:movies/data/database/models/database_interface.dart';
 import 'package:movies/data/database/models/library_models.dart';

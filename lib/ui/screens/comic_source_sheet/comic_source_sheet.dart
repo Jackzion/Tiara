@@ -228,6 +228,7 @@ class _ComicSourceSheetState extends ConsumerState<ComicSourceSheet> {
           leading: match.comic.cover != null
               ? Image.network(
                   match.comic.cover!,
+                  cacheWidth: 96,
                   width: 36,
                   height: 48,
                   fit: BoxFit.cover,
