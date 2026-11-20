@@ -149,6 +149,12 @@ class DriftDatabase implements IDatabase {
     required String comicId,
   }) => _findByUid('comic:$sourceKey:$comicId');
 
+  @override
+  Future<LibraryResume?> findNovel({
+    required String sourceKey,
+    required String bookId,
+  }) => _findByUid('novel:$sourceKey:$bookId');
+
   Future<LibraryResume?> _findByUid(String uid) async {
     final row = await (animeDatabase.select(animeDatabase.libraryEntry)
           ..where((t) => t.uid.equals(uid))

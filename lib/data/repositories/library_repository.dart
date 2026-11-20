@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:lumberdash/lumberdash.dart';
 import 'package:movies/data/database/models/database_interface.dart';
 import 'package:movies/data/database/models/library_models.dart';
 import 'package:movies/data/library/library_codec.dart';
+import 'package:movies/data/models/novel_source.dart';
 import 'package:movies/data/models/play_context.dart';
 
 /// 书库（收藏 + 续看）仓库。
@@ -68,6 +71,35 @@ class LibraryRepository {
     );
   }
 
+  /// 进入小说阅读器时调用：记住上次读到的章 + 章内位置（进度 JSON 塞 playParamsJson）。
+  ///
+  /// [progress] 为 null 则只记章；kind 字段与动画播放参数区分。
+  Future<void> saveNovelRead({
+    required String sourceKey,
+    required String bookId,
+    required String title,
+    required String chapterId,
+    required String chapterTitle,
+    String? posterUrl,
+    NovelProgress? progress,
+  }) async {
+    if (sourceKey.isEmpty || bookId.isEmpty || chapterId.isEmpty) return;
+    await database.savePlay(
+      LibraryPlayUpdate(
+        uid: 'novel:$sourceKey:$bookId',
+        type: 1,
+        title: title,
+        sourceKey: sourceKey,
+        remoteId: bookId,
+        lastUnitId: chapterId,
+        lastUnitTitle: chapterTitle,
+        posterUrl: posterUrl,
+        playParamsJson:
+            progress == null ? null : jsonEncode(progress.toJson()),
+      ),
+    );
+  }
+
   Future<List<LibraryResume>> recentPlays({int limit = 12}) =>
       database.recentPlays(limit: limit);
 
@@ -78,4 +110,9 @@ class LibraryRepository {
     required String sourceKey,
     required String comicId,
   }) => database.findComic(sourceKey: sourceKey, comicId: comicId);
+
+  Future<LibraryResume?> findNovel({
+    required String sourceKey,
+    required String bookId,
+  }) => database.findNovel(sourceKey: sourceKey, bookId: bookId);
 }

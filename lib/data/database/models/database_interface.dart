@@ -30,6 +30,12 @@ abstract class IDatabase {
     required String comicId,
   });
 
+  /// 按书源 + 小说 id 查续读（uid = `novel:<sourceKey>:<bookId>`）
+  Future<LibraryResume?> findNovel({
+    required String sourceKey,
+    required String bookId,
+  });
+
   // ── 详情快照缓存（纯缓存，可整表清理）───────────────
 
   Future<CachedSubject?> readSubjectCache(int bangumiId);

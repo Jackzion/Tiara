@@ -12,6 +12,7 @@ import 'package:movies/data/repositories/anime_repository.dart';
 import 'package:movies/data/repositories/comic_repository.dart';
 import 'package:movies/data/repositories/favorite_repository.dart';
 import 'package:movies/data/repositories/library_repository.dart';
+import 'package:movies/data/repositories/novel_repository.dart';
 import 'package:movies/data/repositories/rules_repository.dart';
 import 'package:movies/network/rule_engine.dart';
 import 'package:movies/router/app_routes.dart';
@@ -179,3 +180,10 @@ Future<ComicRepository> comicRepository(Ref ref) async {
 
 @Riverpod(keepAlive: true)
 ComicImageLoader comicImageLoader(Ref ref) => ComicImageLoader();
+
+/// 小说仓库：P1 阶段只挂内置 Demo 书源，P3 接入 QuickJS 规则源后
+/// 再走 RuleCatalogService 装载（与 comicRepository 对称）。
+@Riverpod(keepAlive: true)
+NovelRepository novelRepository(Ref ref) => NovelRepository({
+      DemoNovelSource.key: DemoNovelSource.create(),
+    });
