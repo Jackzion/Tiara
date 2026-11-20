@@ -230,6 +230,97 @@ class MainRoute extends PageRouteInfo<void> {
 }
 
 /// generated route for
+/// [NovelReader]
+class NovelReaderRoute extends PageRouteInfo<NovelReaderRouteArgs> {
+  NovelReaderRoute({
+    required String sourceKey,
+    required String bookId,
+    required String chapterId,
+    required String title,
+    String chapterTitle = '',
+    Key? key,
+    List<PageRouteInfo>? children,
+  }) : super(
+         NovelReaderRoute.name,
+         args: NovelReaderRouteArgs(
+           sourceKey: sourceKey,
+           bookId: bookId,
+           chapterId: chapterId,
+           title: title,
+           chapterTitle: chapterTitle,
+           key: key,
+         ),
+         initialChildren: children,
+       );
+
+  static const String name = 'NovelReaderRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      final args = data.argsAs<NovelReaderRouteArgs>();
+      return NovelReader(
+        sourceKey: args.sourceKey,
+        bookId: args.bookId,
+        chapterId: args.chapterId,
+        title: args.title,
+        chapterTitle: args.chapterTitle,
+        key: args.key,
+      );
+    },
+  );
+}
+
+class NovelReaderRouteArgs {
+  const NovelReaderRouteArgs({
+    required this.sourceKey,
+    required this.bookId,
+    required this.chapterId,
+    required this.title,
+    this.chapterTitle = '',
+    this.key,
+  });
+
+  final String sourceKey;
+
+  final String bookId;
+
+  final String chapterId;
+
+  final String title;
+
+  final String chapterTitle;
+
+  final Key? key;
+
+  @override
+  String toString() {
+    return 'NovelReaderRouteArgs{sourceKey: $sourceKey, bookId: $bookId, chapterId: $chapterId, title: $title, chapterTitle: $chapterTitle, key: $key}';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! NovelReaderRouteArgs) return false;
+    return sourceKey == other.sourceKey &&
+        bookId == other.bookId &&
+        chapterId == other.chapterId &&
+        title == other.title &&
+        chapterTitle == other.chapterTitle &&
+        key == other.key;
+  }
+
+  @override
+  int get hashCode =>
+      sourceKey.hashCode ^
+      bookId.hashCode ^
+      chapterId.hashCode ^
+      title.hashCode ^
+      chapterTitle.hashCode ^
+      key.hashCode;
+}
+
+/// generated route for
 /// [VideoPage]
 class VideoPageRoute extends PageRouteInfo<VideoPageRouteArgs> {
   VideoPageRoute({

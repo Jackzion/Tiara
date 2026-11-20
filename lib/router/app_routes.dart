@@ -8,6 +8,7 @@ import 'package:movies/ui/screens/genres/genre_screen.dart';
 import 'package:movies/ui/screens/home/home_screen.dart';
 import 'package:movies/ui/screens/favorites/favorite_screen.dart';
 import 'package:movies/ui/screens/anime_detail/anime_detail.dart';
+import 'package:movies/ui/screens/novel_reader/novel_reader.dart';
 import 'package:movies/ui/screens/videos/video_page.dart';
 
 part 'app_routes.gr.dart';
@@ -36,6 +37,13 @@ class AppRouter extends RootStackRouter {
     CustomRoute(
       path: '/comic-reader',
       page: ComicReaderRoute.page,
+      maintainState: false,
+      transitionsBuilder: TransitionsBuilders.slideLeftWithFade,
+      duration: const Duration(milliseconds: 500),
+    ),
+    CustomRoute(
+      path: '/novel-reader',
+      page: NovelReaderRoute.page,
       maintainState: false,
       transitionsBuilder: TransitionsBuilders.slideLeftWithFade,
       duration: const Duration(milliseconds: 500),
