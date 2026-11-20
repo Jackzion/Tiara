@@ -77,18 +77,30 @@ class NovelDetail {
   /// 章节目录（chapterId 稳定；正文按需 loadText）
   final List<NovelChapter> chapters;
 
-  /// loadInfo(id) → {title, cover, chapters: {chapterId: 章名}, ...} 的解析
+  /// loadInfo(id) → {title, cover, author, intro, chapters, ...} 的解析。
+  /// chapters 兼容两种形态：Map（chapterId → 章名）或
+  /// List<Map>（{chapterId, title, volumeTitle}，携带分卷信息）。
   factory NovelDetail.fromInfo(Map<String, dynamic> info) {
-    final rawChapters = (info['chapters'] as Map?) ?? const {};
+    final raw = info['chapters'];
+    List<NovelChapter> chapters;
+    if (raw is List) {
+      chapters = [
+        for (final c in raw)
+          NovelChapter.fromJson(Map<String, dynamic>.from(c as Map)),
+      ];
+    } else {
+      final map = (raw as Map?) ?? const {};
+      chapters = [
+        for (final e in map.entries)
+          NovelChapter(chapterId: '${e.key}', title: '${e.value}'),
+      ];
+    }
     return NovelDetail(
       title: '${info['title'] ?? ''}',
       cover: info['cover'] as String?,
       author: info['author'] as String?,
       intro: info['intro'] as String?,
-      chapters: [
-        for (final e in rawChapters.entries)
-          NovelChapter(chapterId: '${e.key}', title: '${e.value}'),
-      ],
+      chapters: chapters,
     );
   }
 }

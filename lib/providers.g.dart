@@ -1075,21 +1075,116 @@ final class ComicImageLoaderProvider
 
 String _$comicImageLoaderHash() => r'871871eeeda4bb204449a5660011b00d85273006';
 
-/// 小说仓库：P1 阶段只挂内置 Demo 书源，P3 接入 QuickJS 规则源后
-/// 再走 RuleCatalogService 装载（与 comicRepository 对称）。
+/// wenku8 App XML API 客户端（魔改 appver + 社区中继，协议调研 §7.5）
+
+@ProviderFor(wenku8ApiService)
+final wenku8ApiServiceProvider = Wenku8ApiServiceProvider._();
+
+/// wenku8 App XML API 客户端（魔改 appver + 社区中继，协议调研 §7.5）
+
+final class Wenku8ApiServiceProvider
+    extends
+        $FunctionalProvider<
+          Wenku8ApiService,
+          Wenku8ApiService,
+          Wenku8ApiService
+        >
+    with $Provider<Wenku8ApiService> {
+  /// wenku8 App XML API 客户端（魔改 appver + 社区中继，协议调研 §7.5）
+  Wenku8ApiServiceProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'wenku8ApiServiceProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$wenku8ApiServiceHash();
+
+  @$internal
+  @override
+  $ProviderElement<Wenku8ApiService> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  Wenku8ApiService create(Ref ref) {
+    return wenku8ApiService(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(Wenku8ApiService value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<Wenku8ApiService>(value),
+    );
+  }
+}
+
+String _$wenku8ApiServiceHash() => r'eb8fb1ea1632b6d316572247be8f341948b220a9';
+
+/// 章节正文磁盘缓存（命中零网络）
+
+@ProviderFor(novelTextLoader)
+final novelTextLoaderProvider = NovelTextLoaderProvider._();
+
+/// 章节正文磁盘缓存（命中零网络）
+
+final class NovelTextLoaderProvider
+    extends
+        $FunctionalProvider<NovelTextLoader, NovelTextLoader, NovelTextLoader>
+    with $Provider<NovelTextLoader> {
+  /// 章节正文磁盘缓存（命中零网络）
+  NovelTextLoaderProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'novelTextLoaderProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$novelTextLoaderHash();
+
+  @$internal
+  @override
+  $ProviderElement<NovelTextLoader> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  NovelTextLoader create(Ref ref) {
+    return novelTextLoader(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(NovelTextLoader value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<NovelTextLoader>(value),
+    );
+  }
+}
+
+String _$novelTextLoaderHash() => r'aba24e8e1936894aada1817d7605c3dbc40ba978';
+
+/// 小说仓库：wenku8 主源 + 内置 Demo 兜底（与 comicRepository 对称）
 
 @ProviderFor(novelRepository)
 final novelRepositoryProvider = NovelRepositoryProvider._();
 
-/// 小说仓库：P1 阶段只挂内置 Demo 书源，P3 接入 QuickJS 规则源后
-/// 再走 RuleCatalogService 装载（与 comicRepository 对称）。
+/// 小说仓库：wenku8 主源 + 内置 Demo 兜底（与 comicRepository 对称）
 
 final class NovelRepositoryProvider
     extends
         $FunctionalProvider<NovelRepository, NovelRepository, NovelRepository>
     with $Provider<NovelRepository> {
-  /// 小说仓库：P1 阶段只挂内置 Demo 书源，P3 接入 QuickJS 规则源后
-  /// 再走 RuleCatalogService 装载（与 comicRepository 对称）。
+  /// 小说仓库：wenku8 主源 + 内置 Demo 兜底（与 comicRepository 对称）
   NovelRepositoryProvider._()
     : super(
         from: null,
@@ -1123,4 +1218,4 @@ final class NovelRepositoryProvider
   }
 }
 
-String _$novelRepositoryHash() => r'9f1e3ba3d76be88e30b84f0bc0757b2ece2da2f3';
+String _$novelRepositoryHash() => r'9e5b3f6e39c08e829d36ba609dae5a08b19b15f5';

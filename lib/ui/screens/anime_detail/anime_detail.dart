@@ -17,6 +17,7 @@ import 'package:movies/ui/screens/anime_detail/detail_banner.dart';
 import 'package:movies/ui/screens/anime_detail/detail_image.dart';
 import 'package:movies/ui/screens/anime_detail/trailer.dart';
 import 'package:movies/ui/screens/comic_source_sheet/comic_source_sheet.dart';
+import 'package:movies/ui/screens/novel_source_sheet/novel_source_sheet.dart';
 import 'package:movies/ui/screens/source_sheet/source_sheet.dart';
 import 'package:movies/ui/theme/archive_tokens.dart';
 import 'package:movies/ui/widgets/archive/archive_ui.dart';
@@ -263,7 +264,7 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
       onResume: resume == null ? null : () => _resumePlay(resume, details),
       onEpisodeTap: (ep) => _openSourceSheet(details, preferredEpisode: ep),
       onWatchTap: () => details.isBook
-          ? _openComicSourceSheet(details)
+          ? _openBookEntryChooser(details)
           : _openSourceSheet(details, preferredEpisode: null),
       onTagTap: (genre) {
         final container = ProviderScope.containerOf(context, listen: false);
@@ -361,6 +362,25 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
 
   /// 续看/续读：有存下来的上下文就直接进播放器/阅读器，否则退回选源
   Future<void> _resumePlay(LibraryResume resume, AnimeDetails details) async {
+    // 小说（uid 前缀 novel:）进 NovelReader；漫画进 ComicReader
+    if (resume.uid.startsWith('novel:')) {
+      final sourceKey = resume.sourceKey;
+      final bookId = resume.remoteId;
+      final chapterId = resume.lastUnitId;
+      if (sourceKey == null || bookId == null || chapterId == null) return;
+      await context.router.push(
+        NovelReaderRoute(
+          sourceKey: sourceKey,
+          bookId: bookId,
+          chapterId: chapterId,
+          title: resume.title,
+          chapterTitle: resume.lastUnitTitle ?? '',
+        ),
+      );
+      ref.invalidate(animeResumeProvider(widget.animeId));
+      return;
+    }
+
     if (resume.isComic) {
       final sourceKey = resume.sourceKey;
       final comicId = resume.remoteId;
@@ -462,6 +482,67 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
         title: selection.title,
         epTitle: selection.epTitle,
         animeDetail: details
+      ),
+    );
+  }
+
+  /// 书籍入口分流：漫画还是小说（BGM 书籍条目两者皆有可能）
+  Future<void> _openBookEntryChooser(AnimeDetails details) async {
+    final isNovel = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: ArchivePalette.surface,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.image_outlined),
+              title: const Text('漫画'),
+              subtitle: const Text('图源规则搜索'),
+              onTap: () => Navigator.of(context).pop(false),
+            ),
+            ListTile(
+              leading: const Icon(Icons.menu_book),
+              title: const Text('小说'),
+              subtitle: const Text('轻小说文库搜索'),
+              onTap: () => Navigator.of(context).pop(true),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (isNovel == null || !mounted) return;
+    if (isNovel) {
+      await _openNovelSourceSheet(details);
+    } else {
+      await _openComicSourceSheet(details);
+    }
+  }
+
+  /// 打开选书面板（小说）
+  Future<void> _openNovelSourceSheet(AnimeDetails details) async {
+    final keyword = (details.title?.isNotEmpty ?? false)
+        ? details.title!
+        : (details.titleJapanese ?? '');
+    if (keyword.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('缺少可用的搜索关键词')));
+      return;
+    }
+    final selection = await showNovelSourceSheet(
+      context,
+      keyword: keyword,
+      animeId: details.bangumiId,
+      animeTitle: details.title ?? keyword,
+    );
+    if (selection == null || !mounted) return;
+    context.router.push(
+      NovelReaderRoute(
+        sourceKey: selection.sourceKey,
+        bookId: selection.bookId,
+        chapterId: selection.chapterId,
+        title: selection.title,
+        chapterTitle: selection.chapterTitle,
       ),
     );
   }

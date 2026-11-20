@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:lumberdash/lumberdash.dart';
 import 'package:movies/data/api/anilist_api_service.dart';
 import 'package:movies/data/api/bangumi_api_service.dart';
+import 'package:movies/data/api/wenku8_api_service.dart';
 import 'package:movies/data/database/drift/drift_database.dart';
 import 'package:movies/data/database/models/database_interface.dart';
 import 'package:movies/data/database/models/library_models.dart';
@@ -14,6 +15,7 @@ import 'package:movies/data/repositories/favorite_repository.dart';
 import 'package:movies/data/repositories/library_repository.dart';
 import 'package:movies/data/repositories/novel_repository.dart';
 import 'package:movies/data/repositories/rules_repository.dart';
+import 'package:movies/data/repositories/wenku8_repository.dart';
 import 'package:movies/network/rule_engine.dart';
 import 'package:movies/router/app_routes.dart';
 import 'package:movies/services/comic_source/comic_rule_catalog.dart';
@@ -23,6 +25,7 @@ import 'package:movies/services/js/host_convert.dart';
 import 'package:movies/services/js/host_html.dart';
 import 'package:movies/services/js/host_network.dart';
 import 'package:movies/services/js/js_engine_service.dart';
+import 'package:movies/services/novel/novel_text_loader.dart';
 import 'package:movies/services/video_source/webview_video_source_service.dart';
 import 'package:movies/utils/prefs.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -181,9 +184,20 @@ Future<ComicRepository> comicRepository(Ref ref) async {
 @Riverpod(keepAlive: true)
 ComicImageLoader comicImageLoader(Ref ref) => ComicImageLoader();
 
-/// 小说仓库：P1 阶段只挂内置 Demo 书源，P3 接入 QuickJS 规则源后
-/// 再走 RuleCatalogService 装载（与 comicRepository 对称）。
+/// wenku8 App XML API 客户端（魔改 appver + 社区中继，协议调研 §7.5）
+@Riverpod(keepAlive: true)
+Wenku8ApiService wenku8ApiService(Ref ref) => Wenku8ApiService();
+
+/// 章节正文磁盘缓存（命中零网络）
+@Riverpod(keepAlive: true)
+NovelTextLoader novelTextLoader(Ref ref) => NovelTextLoader();
+
+/// 小说仓库：wenku8 主源 + 内置 Demo 兜底（与 comicRepository 对称）
 @Riverpod(keepAlive: true)
 NovelRepository novelRepository(Ref ref) => NovelRepository({
+      Wenku8Repository.sourceKey: Wenku8Repository(
+        ref.read(wenku8ApiServiceProvider),
+        ref.read(novelTextLoaderProvider),
+      ).asSource(),
       DemoNovelSource.key: DemoNovelSource.create(),
     });
