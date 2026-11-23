@@ -96,7 +96,7 @@ void main() {
       );
       expect(fake.last, isNotNull);
       expect(fake.last!.uid, 'novel:demo:demo-fog');
-      expect(fake.last!.type, 1);
+      expect(fake.last!.type, 2);
       expect(fake.last!.lastUnitId, 'c2');
       expect(fake.last!.lastUnitTitle, '第 2 章');
       final progress = NovelProgress.fromJson(

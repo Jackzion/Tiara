@@ -87,7 +87,7 @@ class LibraryRepository {
     await database.savePlay(
       LibraryPlayUpdate(
         uid: 'novel:$sourceKey:$bookId',
-        type: 1,
+        type: 2,
         title: title,
         sourceKey: sourceKey,
         remoteId: bookId,

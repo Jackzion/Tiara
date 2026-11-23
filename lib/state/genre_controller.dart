@@ -13,12 +13,23 @@ const String genreStringKey = 'GenreKey';
 /// Genre 页 tab（ALL 不限 type / Book 书籍 / Anime 动画）→ 映射为 Bangumi types
 enum SubjectTypeFilter {
   all('ALL', []), // 空列表 = 不写 filter.type，不限类型
-  book('Book', [1]),
+  comic('Comic', [1], metaTag: '漫画'),
+  novel('Novel', [1], metaTag: '小说'),
   anime('Anime', [2]);
 
-  const SubjectTypeFilter(this.label, this.types);
+  const SubjectTypeFilter(this.label, this.types, {this.metaTag});
   final String label;
   final List<int> types;
+  final String? metaTag;
+
+  // map to http query params
+  Map<String, dynamic> toQuery() {
+    final q = <String, dynamic>{};
+    if (types.isNotEmpty) q['type'] = types;
+    // 分类过滤走 meta_tags 公共标签
+    if (metaTag != null) q['meta_tags'] = [metaTag];
+    return q;
+  }
 }
 
 /// 分类页状态（chip 选中 + 外部 tag + 搜索结果 + 排序）
@@ -143,12 +154,10 @@ class GenreController extends _$GenreController {
       );
     }
     // set type filter
-    if (request.types.isNotEmpty) {
-      pageState = pageState.copyWith(
-        typeFilter: _filterOfType(request.types),
-        page: 0,
-      );
-    }
+    pageState = pageState.copyWith(
+      typeFilter: request.typeFilter,
+      page: 0,
+    );
     state = AsyncData(pageState);
     return search();
   }
@@ -241,7 +250,7 @@ class GenreController extends _$GenreController {
           query,
           page,
           selectedTags.isEmpty ? null : selectedTags,
-          types: pageState.typeFilter.types,
+          typeFilter: pageState.typeFilter,
         );
     if (!ref.mounted) {
       return true;
@@ -253,19 +262,5 @@ class GenreController extends _$GenreController {
       ),
     );
     return true;
-  }
-
-  /// 把 List 映回枚举：空列表→all，[1]→book，[2]→anime
-  SubjectTypeFilter _filterOfType(List<int> types) {
-    if (types.isEmpty) {
-      return SubjectTypeFilter.all;
-    }
-    if (types.first == 1) {
-      return SubjectTypeFilter.book;
-    }
-    if (types.first == 2) {
-      return SubjectTypeFilter.anime;
-    }
-    return SubjectTypeFilter.all;
   }
 }

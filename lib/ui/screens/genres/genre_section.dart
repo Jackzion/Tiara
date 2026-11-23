@@ -162,8 +162,10 @@ class GenreSection extends StatelessWidget {
     switch (filter) {
       case SubjectTypeFilter.all:
         return '全部';
-      case SubjectTypeFilter.book:
-        return '书籍';
+      case SubjectTypeFilter.comic:
+        return '漫画';
+      case SubjectTypeFilter.novel:
+        return '小说';
       case SubjectTypeFilter.anime:
         return '动画';
     }

@@ -1,10 +1,11 @@
+import 'package:movies/state/genre_controller.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'search_state.g.dart';
 
 /// 跨页搜索请求（全局搜索 / SearchDialog / 详情页点标签 → Genre 页消费）
 class SearchRequest {
-  const SearchRequest({this.keyword, this.extraTag, this.seq = 0, this.types = const [2]});
+  const SearchRequest({this.keyword, this.extraTag, this.seq = 0, this.typeFilter = SubjectTypeFilter.all});
 
   /// 非空：按关键字搜索（保留现有 chip / 外部 tag）
   final String? keyword;
@@ -16,7 +17,7 @@ class SearchRequest {
   final int seq;
 
   /// 搜索类型（默认动画）
-  final List<int> types;
+  final SubjectTypeFilter typeFilter;
 }
 
 /// 跨页搜索请求通道：谁搜谁写，Genre 页是唯一消费方
@@ -28,8 +29,8 @@ class SearchState extends _$SearchState {
   SearchRequest build() => const SearchRequest();
 
   /// 关键字搜索（全局搜索 / SearchDialog）
-  void searchByKeyword(String keyword, {List<int> types = const [2]}) {
-    state = SearchRequest(keyword: keyword, seq: state.seq + 1, types: types);
+  void searchByKeyword(String keyword, {SubjectTypeFilter typeFilter = SubjectTypeFilter.all}) {
+    state = SearchRequest(keyword: keyword, seq: state.seq + 1, typeFilter: typeFilter);
   }
 
   /// 追加外部标签搜索（详情页点标签）

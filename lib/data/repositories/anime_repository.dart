@@ -6,6 +6,7 @@ import 'package:movies/data/models/anime_details.dart';
 import 'package:movies/data/models/genre.dart';
 import 'package:movies/data/parsing/search_result_parser.dart';
 import 'package:movies/data/repositories/anime_cache_repository.dart';
+import 'package:movies/state/genre_controller.dart';
 
 /// 动漫数据仓库
 /// 只负责「取数 + 解析」；缓存统一在 AnimeCacheRepository（DB）
@@ -187,7 +188,7 @@ class AnimeRepository {
     String query,
     int page,
     List<String>? tags, {
-    List<int> types = const [2],
+    SubjectTypeFilter typeFilter = SubjectTypeFilter.all,
   }) async {
     try {
       final response = await bangumiApiService.searchSubjects(
@@ -195,7 +196,7 @@ class AnimeRepository {
         limit: 10,
         tags: tags,
         offset: page * 10,
-        types: types,
+        typeFilter: typeFilter,
       );
       if (response.statusCode == 200) {
         return BangumiSearchResult(

@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:lumberdash/lumberdash.dart';
 import 'package:movies/data/api/request_throttle.dart';
 import 'package:movies/data/api/timing_interceptor.dart';
+import 'package:movies/state/genre_controller.dart';
 
 /// Bangumi API 基础地址
 const String bangumiApiUrl = 'https://api.bgm.tv';
@@ -38,12 +39,12 @@ class BangumiApiService {
     return dio.get('/calendar');
   }
 
-  /// 搜索条目（type=2 固定为动画）
+  /// 搜索条目
   /// 分页参数 limit/offset 走 URL query（放 body 会被忽略）
   /// [rankFilter] / [ratingFilter] 为 Bangumi 过滤表达式，如 ['>= 1', '<= 300']
   /// [sort] 支持 match / heat / rank
   Future<Response> searchSubjects({
-    List<int> types = const [2],
+    SubjectTypeFilter typeFilter = SubjectTypeFilter.all,
     String keyword = '',
     List<String>? tags,
     List<String>? rankFilter,
@@ -53,9 +54,8 @@ class BangumiApiService {
     int offset = 0,
   }) async {
     await throttle.wait();
-    final filter = <String, dynamic>{
-      'type': types,
-    };
+    // get filter subject type
+    final filter = typeFilter.toQuery();
     if (tags != null && tags.isNotEmpty) {
       // Bangumi 过滤字段为单数 tag；复数 tags 会被忽略
       filter['tag'] = tags;

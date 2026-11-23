@@ -24,7 +24,7 @@ class LibraryPlayUpdate {
   /// anime:<bangumiId> / comic:<sourceKey>:<comicId>
   final String uid;
 
-  /// 0 = 动画，1 = 漫画/小说
+  /// 0 = 动画，1 = 漫画, 2 = 小说
   final int type;
 
   final String title;
