@@ -83,16 +83,18 @@ class _NovelReaderSidebarState extends State<NovelReaderSidebar> {
     if (query.isEmpty) return;
 
     for (final chapter in widget.chapters) {
-      if (token != _searchToken) return; // 已取消/新查询
+      // 跳转后侧边栏会 dispose：卸载/新查询都立即停止扫描
+      if (!mounted || token != _searchToken) return;
       List<String> paragraphs;
       try {
         paragraphs = await widget.loadParagraphs(chapter.chapterId);
       } catch (_) {
         // 单章取文失败跳过（网络抖动/下架），不阻塞全书搜索
+        if (!mounted || token != _searchToken) return;
         setState(() => _scanned++);
         continue;
       }
-      if (token != _searchToken) return;
+      if (!mounted || token != _searchToken) return;
       final hits = <NovelSearchHit>[
         for (var i = 0; i < paragraphs.length; i++)
           ...findNovelHitsWithContext(paragraphs[i], query, paragraphIndex: i),
@@ -102,7 +104,7 @@ class _NovelReaderSidebarState extends State<NovelReaderSidebar> {
       }
       setState(() => _scanned++);
     }
-    if (token == _searchToken && mounted) {
+    if (mounted && token == _searchToken) {
       setState(() => _searching = false);
     }
   }
