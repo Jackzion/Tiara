@@ -54,7 +54,7 @@ final class NovelReaderControllerProvider
 }
 
 String _$novelReaderControllerHash() =>
-    r'ebf0accb44ddb6fab35003fd1db035406fa66677';
+    r'b56be7b3b5a185485db81a60e9885469e168e1ea';
 
 /// 小说阅读器控制器（family: sourceKey/bookId/chapterId，随页面销毁）
 

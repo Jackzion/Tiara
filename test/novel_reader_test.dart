@@ -91,7 +91,9 @@ void main() {
     final text = tester.widget<Text>(
       find.textContaining('第 1 章第 1 段').first,
     );
-    expect(text.style!.fontSize, greaterThan(19));
+    // 段落用 Text.rich 渲染：样式挂在根 TextSpan 上
+    final size = (text.textSpan as TextSpan?)?.style?.fontSize ?? text.style?.fontSize;
+    expect(size, greaterThan(19));
   });
 
   testWidgets('书库进度恢复：滚到已读段落附近', (tester) async {

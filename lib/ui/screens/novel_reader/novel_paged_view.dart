@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:movies/services/novel/novel_navigation.dart';
 import 'package:movies/services/novel/novel_pagination.dart';
 import 'package:movies/ui/widgets/resilient_network_image.dart';
 
@@ -14,6 +15,7 @@ class NovelPagedView extends StatefulWidget {
     required this.layout,
     required this.initialPage,
     required this.textColor,
+    this.highlights = const {},
     required this.onPageChanged,
     required this.onTapCenter,
   });
@@ -23,6 +25,9 @@ class NovelPagedView extends StatefulWidget {
   final NovelLayout layout;
   final int initialPage;
   final Color textColor;
+
+  /// 章内查找高亮：段落 → 段内区间列表（片段内自动裁剪）
+  final Map<int, List<(int, int)>> highlights;
   final ValueChanged<int> onPageChanged;
 
   /// 点击屏幕中央（chrome 显隐）
@@ -93,10 +98,14 @@ class _NovelPagedViewState extends State<NovelPagedView> {
                 rect: fragment.rect,
                 child: fragment.isImage
                     ? _PageImage(url: fragment.url!)
-                    : Text(
-                        widget.paragraphs[fragment.paragraph]
-                            .substring(fragment.start, fragment.end),
-                        style: style,
+                    : Text.rich(
+                        buildHighlightedSpan(
+                          widget.paragraphs[fragment.paragraph]
+                              .substring(fragment.start, fragment.end),
+                          style,
+                          widget.highlights[fragment.paragraph] ?? const [],
+                          base: fragment.start,
+                        ),
                       ),
               ),
           ],

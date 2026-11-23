@@ -17,6 +17,8 @@ class NovelReaderState {
     required this.chapterIndex,
     required this.chapterCount,
     required this.initialParagraph,
+    this.initialOffset = 0,
+    this.chapters = const [],
     this.prevChapterId,
     this.prevChapterTitle,
     this.nextChapterId,
@@ -36,8 +38,12 @@ class NovelReaderState {
   final int chapterIndex;
   final int chapterCount;
 
-  /// 书库恢复的目标段落（0 = 从头读）
+  /// 书库恢复的精确锚点：目标段落（0 = 从头读）+ 段内 UTF-16 偏移
   final int initialParagraph;
+  final int initialOffset;
+
+  /// 全书目录（含分卷名，目录面板用）
+  final List<NovelChapter> chapters;
 
   /// 上一章 / 下一章（无则 null）
   final String? prevChapterId;
@@ -52,6 +58,8 @@ class NovelReaderState {
     int? chapterIndex,
     int? chapterCount,
     int? initialParagraph,
+    int? initialOffset,
+    List<NovelChapter>? chapters,
     String? prevChapterId,
     String? prevChapterTitle,
     String? nextChapterId,
@@ -64,6 +72,8 @@ class NovelReaderState {
       chapterIndex: chapterIndex ?? this.chapterIndex,
       chapterCount: chapterCount ?? this.chapterCount,
       initialParagraph: initialParagraph ?? this.initialParagraph,
+      initialOffset: initialOffset ?? this.initialOffset,
+      chapters: chapters ?? this.chapters,
       prevChapterId: prevChapterId ?? this.prevChapterId,
       prevChapterTitle: prevChapterTitle ?? this.prevChapterTitle,
       nextChapterId: nextChapterId ?? this.nextChapterId,
@@ -102,8 +112,9 @@ class NovelReaderController extends _$NovelReaderController {
     final chapters = detail.chapters;
     final index = chapters.indexWhere((c) => c.chapterId == chapterId);
 
-    // 书库恢复：上次读到的段落（仅当上次就是本章时生效）
+    // 书库恢复：上次读到的锚点（仅当上次就是本章时生效）
     var initialParagraph = 0;
+    var initialOffset = 0;
     try {
       final saved = await ref
           .read(libraryRepositoryProvider)
@@ -113,6 +124,7 @@ class NovelReaderController extends _$NovelReaderController {
           jsonDecode(saved!.playParamsJson!) as Map<String, dynamic>,
         );
         initialParagraph = progress.paragraphIndex.clamp(0, paragraphs.length);
+        initialOffset = progress.textOffset;
       }
     } catch (e) {
       // 进度损坏不阻塞阅读
@@ -126,6 +138,8 @@ class NovelReaderController extends _$NovelReaderController {
       chapterIndex: index >= 0 ? index : 0,
       chapterCount: chapters.length,
       initialParagraph: initialParagraph,
+      initialOffset: initialOffset,
+      chapters: chapters,
       prevChapterId: (index > 0) ? chapters[index - 1].chapterId : null,
       prevChapterTitle: (index > 0) ? chapters[index - 1].title : null,
       nextChapterId:
@@ -140,7 +154,12 @@ class NovelReaderController extends _$NovelReaderController {
   }
 
   /// 阅读位置变化时调用：把「读到哪」落库（fire-and-forget，失败不影响阅读）。
-  void touchProgress(int paragraphIndex, double fraction, {double? fontSize}) {
+  void touchProgress(
+    int paragraphIndex,
+    double fraction, {
+    double? fontSize,
+    int textOffset = 0,
+  }) {
     if (!ref.mounted) return;
     final current = state.value;
     if (current == null) return;
@@ -156,6 +175,7 @@ class NovelReaderController extends _$NovelReaderController {
             progress: NovelProgress(
               paragraphIndex: paragraphIndex,
               fraction: fraction.clamp(0, 1),
+              textOffset: textOffset,
               fontSize: fontSize,
             ),
           )

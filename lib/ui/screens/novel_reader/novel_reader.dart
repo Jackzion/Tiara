@@ -2,13 +2,17 @@ import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lumberdash/lumberdash.dart';
+import 'package:movies/data/models/novel_source.dart';
 import 'package:movies/providers.dart';
 import 'package:movies/router/app_routes.dart';
+import 'package:movies/services/novel/novel_navigation.dart';
 import 'package:movies/services/novel/novel_pagination.dart';
 import 'package:movies/state/novel_reader_controller.dart';
 import 'package:movies/ui/screens/novel_reader/novel_paged_view.dart';
+import 'package:movies/ui/screens/novel_reader/novel_reader_sidebar.dart';
 import 'package:movies/ui/theme/theme.dart';
 import 'package:movies/ui/widgets/not_ready.dart';
 import 'package:movies/ui/widgets/resilient_network_image.dart';
@@ -136,6 +140,8 @@ class NovelReader extends ConsumerStatefulWidget {
     required this.chapterId,
     required this.title,
     this.chapterTitle = '',
+    this.initialParagraph,
+    this.initialOffset,
     super.key,
   });
 
@@ -148,6 +154,10 @@ class NovelReader extends ConsumerStatefulWidget {
 
   /// 章名（入参兜底，正常以 controller 加载的为准）
   final String chapterTitle;
+
+  /// 跨章跳转锚点（全书搜索点击结果时传入；null = 按书库进度恢复）
+  final int? initialParagraph;
+  final int? initialOffset;
 
   @override
   ConsumerState<NovelReader> createState() => _NovelReaderState();
@@ -176,6 +186,17 @@ class _NovelReaderState extends ConsumerState<NovelReader> {
 
   /// 翻页模式的页码标签（如 "12 / 256 页"）
   String? _pagedLabel;
+
+  /// 章内/全书查找高亮区间（段落 → 段内区间列表）
+  Map<int, List<(int, int)>> _highlights = {};
+
+  /// 左侧边栏（目录/全书搜索）
+  bool _sidebarVisible = false;
+  NovelSidebarTab _sidebarTab = NovelSidebarTab.catalog;
+
+  /// 翻页模式的定位令牌（跳转时递增触发重建）
+  int _seekToken = 0;
+  int _seekOffset = 0;
 
   @override
   void initState() {
@@ -279,12 +300,20 @@ class _NovelReaderState extends ConsumerState<NovelReader> {
     });
   }
 
+
+
   /// 恢复阅读位置：先按估值跳近，再精修到目标段（顶对齐）
   void _scheduleRestore(NovelReaderState state) {
     if (_restored) return;
     _restored = true;
-    final target = state.initialParagraph;
-    if (target <= 0) return;
+    // 跨章跳转锚点优先，否则用书库进度锚点
+    final target = widget.initialParagraph ?? state.initialParagraph;
+    final offset = widget.initialParagraph != null
+        ? (widget.initialOffset ?? 0)
+        : state.initialOffset;
+    _anchorParagraph = target;
+    _seekOffset = offset;
+    if (target <= 0 && offset <= 0) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scrollController.hasClients) return;
       final est = target *
@@ -297,8 +326,121 @@ class _NovelReaderState extends ConsumerState<NovelReader> {
         final ctx = _keys[target]?.currentContext;
         if (ctx != null) {
           Scrollable.ensureVisible(ctx, duration: Duration.zero);
+          // 段内偏移精修（全书搜索跳转/精确恢复）
+          if (offset > 0) {
+            _jumpToTextPosition(target, offset);
+          }
         }
       });
+    });
+  }
+
+  // ── 左侧边栏（目录/全书搜索）────────────────────────────────
+
+  void _openSidebar(NovelSidebarTab tab) {
+    setState(() {
+      _sidebarTab = tab;
+      _sidebarVisible = true;
+    });
+  }
+
+  void _closeSidebar() => setState(() => _sidebarVisible = false);
+
+  /// 侧边栏浮层：左停靠面板 + 点右侧遮罩关闭
+  Widget _buildSidebar(NovelReaderState state) {
+    return Positioned.fill(
+      child: Row(
+        children: [
+          NovelReaderSidebar(
+            bookTitle: state.bookTitle,
+            chapters: state.chapters,
+            currentChapterId: widget.chapterId,
+            loadParagraphs: (chapterId) async {
+              final text = await ref
+                  .read(novelRepositoryProvider)
+                  .loadText(widget.sourceKey, widget.bookId, chapterId);
+              return splitNovelParagraphs(text);
+            },
+            onJump: _onJump,
+            onClose: _closeSidebar,
+            initialTab: _sidebarTab,
+          ),
+          Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _closeSidebar,
+              child: const ColoredBox(color: ArchivePalette.scrim),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 侧边栏跳转：本章 → 高亮 + 滚动/翻页定位；他章 → replace 换章带锚点
+  void _onJump(
+    NovelChapter chapter,
+    int paragraph,
+    int offset,
+    List<(int, int)> ranges,
+  ) {
+    _closeSidebar();
+    if (chapter.chapterId == widget.chapterId) {
+      setState(() {
+        _highlights = ranges.isEmpty ? {} : {paragraph: ranges};
+        _anchorParagraph = paragraph;
+        _seekOffset = offset;
+        _seekToken++;
+      });
+      if (_prefs.mode == NovelReadingMode.scroll) {
+        _jumpToTextPosition(paragraph, offset);
+      }
+      return;
+    }
+    _progressTimer?.cancel();
+    _saveProgress();
+    context.router.replace(
+      NovelReaderRoute(
+        sourceKey: widget.sourceKey,
+        bookId: widget.bookId,
+        chapterId: chapter.chapterId,
+        title: widget.title,
+        chapterTitle: chapter.title,
+        initialParagraph: paragraph,
+        initialOffset: offset,
+      ),
+    );
+  }
+
+  /// 精确跳到段内文本位置：段首 ensureVisible，段内按行框顶校正
+  void _jumpToTextPosition(int paragraph, int offset) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final ctx = _keys[paragraph]?.currentContext;
+      if (ctx == null) return;
+      if (offset <= 0 || !_scrollController.hasClients) {
+        Scrollable.ensureVisible(ctx, duration: Duration.zero);
+        return;
+      }
+      final rp = ctx.findRenderObject() as RenderParagraph?;
+      if (rp == null) {
+        Scrollable.ensureVisible(ctx, duration: Duration.zero);
+        return;
+      }
+      final boxes = rp.getBoxesForSelection(
+        TextSelection(baseOffset: offset, extentOffset: offset + 1),
+      );
+      if (boxes.isEmpty) {
+        Scrollable.ensureVisible(ctx, duration: Duration.zero);
+        return;
+      }
+      final dy = rp.localToGlobal(Offset.zero).dy + boxes.first.top;
+      final target = _scrollController.offset +
+          dy -
+          (MediaQuery.of(context).padding.top + 64);
+      _scrollController.jumpTo(
+        target.clamp(0.0, _scrollController.position.maxScrollExtent),
+      );
     });
   }
 
@@ -348,6 +490,7 @@ class _NovelReaderState extends ConsumerState<NovelReader> {
               data: _buildReader,
             ),
           ),
+          if (_sidebarVisible && state != null) _buildSidebar(state),
           // 顶部栏：书名 · 章名（点中央显隐）
           Positioned(
             top: 0,
@@ -392,6 +535,8 @@ class _NovelReaderState extends ConsumerState<NovelReader> {
                     state!.nextChapterId!,
                     state.nextChapterTitle ?? '',
                   ),
+                  onCatalog: () => _openSidebar(NovelSidebarTab.catalog),
+                  onFind: () => _openSidebar(NovelSidebarTab.search),
                   onSettings: _showSettings,
                 ),
               ),
@@ -446,10 +591,13 @@ class _NovelReaderState extends ConsumerState<NovelReader> {
     // 翻页模式：分页引擎 + PageView（一图一页）
     if (_prefs.mode == NovelReadingMode.paged) {
       return _PagedReader(
+        key: ValueKey(_seekToken),
         paragraphs: state.paragraphs,
         layout: _layout(MediaQuery.of(context).size),
         textColor: textColor,
         initialParagraph: _anchorParagraph,
+        initialOffset: _seekOffset,
+        highlights: _highlights,
         onPageChanged: _onPaged,
         onTapCenter: () => setState(() => _showChrome = !_showChrome),
       );
@@ -493,12 +641,16 @@ class _NovelReaderState extends ConsumerState<NovelReader> {
                       height: MediaQuery.of(context).size.height - 64 - 88,
                       child: _ParagraphImage(url: imageUrl),
                     )
-                  : Text(
-                      paragraph,
-                      style: TextStyle(
-                        fontSize: _prefs.fontSize,
-                        height: _prefs.lineHeight,
-                        color: textColor,
+                  : Text.rich(
+                      buildHighlightedSpan(
+                        paragraph,
+                        TextStyle(
+                          fontSize: _prefs.fontSize,
+                          height: _prefs.lineHeight,
+                          letterSpacing: _prefs.letterSpacing,
+                          color: textColor,
+                        ),
+                        _highlights[index] ?? const [],
                       ),
                     ),
             );
@@ -519,15 +671,20 @@ class _NovelReaderState extends ConsumerState<NovelReader> {
     }
   }
 
+  /// 全书进度 =（章序 + 章内段落进度）/ 总章数（插图段按 1 段计）
   double? _progress(NovelReaderState? state) {
     if (state == null || state.chapterCount == 0) return null;
-    return (state.chapterIndex + 1) / state.chapterCount;
+    final within = state.paragraphs.isEmpty
+        ? 0.0
+        : (_anchorParagraph / state.paragraphs.length).clamp(0.0, 1.0);
+    return ((state.chapterIndex + within) / state.chapterCount).clamp(0.0, 1.0);
   }
 
   String _chapterLabel(NovelReaderState? state) {
     if (_pagedLabel != null) return _pagedLabel!;
     if (state == null || state.chapterCount == 0) return '';
-    return '第 ${state.chapterIndex + 1}/${state.chapterCount} 章';
+    final percent = ((_progress(state) ?? 0) * 100).round();
+    return '第 ${state.chapterIndex + 1}/${state.chapterCount} 章 · $percent%';
   }
 
   void _showSettings() {
@@ -592,6 +749,8 @@ class _BottomBar extends StatelessWidget {
     required this.hasNext,
     required this.onPrev,
     required this.onNext,
+    required this.onCatalog,
+    required this.onFind,
     required this.onSettings,
   });
 
@@ -601,6 +760,8 @@ class _BottomBar extends StatelessWidget {
   final bool hasNext;
   final VoidCallback onPrev;
   final VoidCallback onNext;
+  final VoidCallback? onCatalog;
+  final VoidCallback onFind;
   final VoidCallback onSettings;
 
   @override
@@ -633,6 +794,16 @@ class _BottomBar extends StatelessWidget {
                     label: const Text('下一章'),
                   ),
                   const Spacer(),
+                  IconButton(
+                    onPressed: onCatalog,
+                    icon: const Icon(Icons.toc, size: 18),
+                    tooltip: '目录',
+                  ),
+                  IconButton(
+                    onPressed: onFind,
+                    icon: const Icon(Icons.search, size: 18),
+                    tooltip: '章内查找',
+                  ),
                   IconButton(
                     onPressed: onSettings,
                     icon: const Icon(Icons.text_fields, size: 18),
@@ -726,10 +897,13 @@ class _ParagraphImage extends StatelessWidget {
 /// 分页正文：管理分页任务（layout/正文变化时重排，可取消）与页定位。
 class _PagedReader extends StatefulWidget {
   const _PagedReader({
+    super.key,
     required this.paragraphs,
     required this.layout,
     required this.textColor,
     required this.initialParagraph,
+    this.initialOffset = 0,
+    this.highlights = const {},
     required this.onPageChanged,
     required this.onTapCenter,
   });
@@ -738,6 +912,8 @@ class _PagedReader extends StatefulWidget {
   final NovelLayout layout;
   final Color textColor;
   final int initialParagraph;
+  final int initialOffset;
+  final Map<int, List<(int, int)>> highlights;
   final void Function(int pageIndex, NovelPage page, int pageCount)
       onPageChanged;
   final VoidCallback onTapCenter;
@@ -772,9 +948,18 @@ class _PagedReaderState extends State<_PagedReader> {
     }
   }
 
-  /// 初始页：首个覆盖目标段落的页
+  /// 初始页：优先精确命中 (段落, 偏移) 所在片段，退化为段落页首
   int _initialPage() {
     final pages = _pages!;
+    for (var i = 0; i < pages.length; i++) {
+      for (final f in pages[i].fragments) {
+        if (f.paragraph == widget.initialParagraph &&
+            f.start <= widget.initialOffset &&
+            widget.initialOffset < f.end) {
+          return i;
+        }
+      }
+    }
     for (var i = 0; i < pages.length; i++) {
       if (pages[i].firstParagraph >= widget.initialParagraph) return i;
     }
@@ -793,6 +978,7 @@ class _PagedReaderState extends State<_PagedReader> {
       layout: widget.layout,
       initialPage: _initialPage(),
       textColor: widget.textColor,
+      highlights: widget.highlights,
       onPageChanged: (index) => widget.onPageChanged(
         index,
         pages[index],
@@ -803,6 +989,7 @@ class _PagedReaderState extends State<_PagedReader> {
   }
 }
 
+/// 目录面板：分卷分组（连续同卷折叠）+ 当前章标记，点击跳章。
 class _ReaderSettingsSheet extends StatefulWidget {
   const _ReaderSettingsSheet({required this.prefs, required this.onChanged});
 

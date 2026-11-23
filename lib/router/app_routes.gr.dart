@@ -238,6 +238,8 @@ class NovelReaderRoute extends PageRouteInfo<NovelReaderRouteArgs> {
     required String chapterId,
     required String title,
     String chapterTitle = '',
+    int? initialParagraph,
+    int? initialOffset,
     Key? key,
     List<PageRouteInfo>? children,
   }) : super(
@@ -248,6 +250,8 @@ class NovelReaderRoute extends PageRouteInfo<NovelReaderRouteArgs> {
            chapterId: chapterId,
            title: title,
            chapterTitle: chapterTitle,
+           initialParagraph: initialParagraph,
+           initialOffset: initialOffset,
            key: key,
          ),
          initialChildren: children,
@@ -265,6 +269,8 @@ class NovelReaderRoute extends PageRouteInfo<NovelReaderRouteArgs> {
         chapterId: args.chapterId,
         title: args.title,
         chapterTitle: args.chapterTitle,
+        initialParagraph: args.initialParagraph,
+        initialOffset: args.initialOffset,
         key: args.key,
       );
     },
@@ -278,6 +284,8 @@ class NovelReaderRouteArgs {
     required this.chapterId,
     required this.title,
     this.chapterTitle = '',
+    this.initialParagraph,
+    this.initialOffset,
     this.key,
   });
 
@@ -291,11 +299,15 @@ class NovelReaderRouteArgs {
 
   final String chapterTitle;
 
+  final int? initialParagraph;
+
+  final int? initialOffset;
+
   final Key? key;
 
   @override
   String toString() {
-    return 'NovelReaderRouteArgs{sourceKey: $sourceKey, bookId: $bookId, chapterId: $chapterId, title: $title, chapterTitle: $chapterTitle, key: $key}';
+    return 'NovelReaderRouteArgs{sourceKey: $sourceKey, bookId: $bookId, chapterId: $chapterId, title: $title, chapterTitle: $chapterTitle, initialParagraph: $initialParagraph, initialOffset: $initialOffset, key: $key}';
   }
 
   @override
@@ -307,6 +319,8 @@ class NovelReaderRouteArgs {
         chapterId == other.chapterId &&
         title == other.title &&
         chapterTitle == other.chapterTitle &&
+        initialParagraph == other.initialParagraph &&
+        initialOffset == other.initialOffset &&
         key == other.key;
   }
 
@@ -317,6 +331,8 @@ class NovelReaderRouteArgs {
       chapterId.hashCode ^
       title.hashCode ^
       chapterTitle.hashCode ^
+      initialParagraph.hashCode ^
+      initialOffset.hashCode ^
       key.hashCode;
 }
 
