@@ -9,6 +9,7 @@ import 'package:movies/router/app_routes.dart';
 import 'package:movies/state/novel_reader_controller.dart';
 import 'package:movies/ui/theme/theme.dart';
 import 'package:movies/ui/widgets/not_ready.dart';
+import 'package:movies/ui/widgets/resilient_network_image.dart';
 import 'package:movies/utils/prefs.dart';
 
 /// 阅读器纸张（背景/文字配色，独立于 App 主题，取自 wenku8-ui-style §2.5）。
@@ -585,22 +586,7 @@ class _NextChapterCard extends StatelessWidget {
 }
 
 /// 插图段：网络图 + 载入/失败占位
-/// wenku8 图片域防盗链要求 Referer/UA（协议调研 §4），否则 403。
-Map<String, String>? _imageHeaders(String url) {
-  final host = Uri.tryParse(url)?.host.toLowerCase() ?? '';
-  final isWenku8Image = host.endsWith('.wenku8.com') ||
-      host.endsWith('.wenku8.net') ||
-      host.endsWith('.wkcdn.com') ||
-      host.endsWith('.777743.xyz');
-  if (!isWenku8Image) return null;
-  return const {
-    'Referer': 'https://www.wenku8.cc/',
-    'user-agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-            '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-  };
-}
-
+/// wenku8 图片防盗链头（协议调研 §4），403 防护；实现见 widgets 公共件。
 class _ParagraphImage extends StatelessWidget {
   const _ParagraphImage({required this.url});
 
@@ -610,9 +596,11 @@ class _ParagraphImage extends StatelessWidget {
   Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(2),
-      child: Image.network(
-        url,
-        headers: _imageHeaders(url),
+      child: Image(
+        image: ResilientNetworkImage(
+          url,
+          headers: wenku8ImageHeaders(url),
+        ),
         fit: BoxFit.contain,
         loadingBuilder: (_, child, progress) => progress == null
             ? child
