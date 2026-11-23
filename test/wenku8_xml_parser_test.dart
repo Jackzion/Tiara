@@ -115,6 +115,26 @@ void main() {
       );
     });
 
+    test('一行多图连排 → 每图独立段落（阅读器一段一图）', () {
+      const raw = '<!--image-->https://a/1.jpg<!--image-->       '
+          '<!--image-->https://a/2.jpg<!--image-->';
+      final text = normalizeWenku8ChapterText(raw);
+      expect(text.split('\n\n'), [
+        '<!--image-->https://a/1.jpg<!--image-->',
+        '<!--image-->https://a/2.jpg<!--image-->',
+      ]);
+    });
+
+    test('图文混排行 → 文本与图各自成段', () {
+      const raw = '卷首语 <!--image-->https://a/1.jpg<!--image--> 尾声';
+      final text = normalizeWenku8ChapterText(raw);
+      expect(text.split('\n\n'), [
+        '卷首语',
+        '<!--image-->https://a/1.jpg<!--image-->',
+        '尾声',
+      ]);
+    });
+
     test('字面 null 行被丢弃（接口缺章信号）', () {
       expect(normalizeWenku8ChapterText('null'), isEmpty);
     });

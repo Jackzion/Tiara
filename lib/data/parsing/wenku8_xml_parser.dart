@@ -81,13 +81,33 @@ List<NovelChapter> parseWenku8Catalog(String xml) {
 /// 正文（do=text 纯文本）→ 阅读器内部格式。
 /// 实测（2026-11-20）：段落以单换行分隔（CRLF 为主）、段首有缩进空格；
 /// 插图行为 `<!--image-->url<!--image-->` 独立行；空行/纯空格行丢弃。
+///
+/// 注意：一行可能连排**多个**插图标记（插图章常见
+/// `<!--image-->A<!--image-->   <!--image-->B<!--image-->`），
+/// 必须拆成每图一段——阅读器约定「一段一图」，混排会把标记流当 URL。
 String normalizeWenku8ChapterText(String raw) {
   final lines = raw.replaceAll('\r\n', '\n').replaceAll('\r', '\n').split('\n');
   final paragraphs = <String>[];
+  const imageRe = r'<!--image-->(.*?)<!--image-->';
   for (final line in lines) {
     final t = line.trim();
     if (t.isEmpty || t == 'null') continue;
-    paragraphs.add(t);
+    final matches = RegExp(imageRe).allMatches(t).toList();
+    if (matches.isEmpty) {
+      paragraphs.add(t);
+      continue;
+    }
+    // 图文混排/一行多图：文本段与图段拆开，图各自成段
+    var last = 0;
+    for (final m in matches) {
+      final before = t.substring(last, m.start).trim();
+      if (before.isNotEmpty) paragraphs.add(before);
+      final url = m.group(1)!.trim();
+      if (url.isNotEmpty) paragraphs.add('<!--image-->$url<!--image-->');
+      last = m.end;
+    }
+    final after = t.substring(last).trim();
+    if (after.isNotEmpty) paragraphs.add(after);
   }
   return paragraphs.join('\n\n');
 }

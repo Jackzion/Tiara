@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lumberdash/lumberdash.dart';
 import 'package:movies/providers.dart';
 import 'package:movies/router/app_routes.dart';
 import 'package:movies/state/novel_reader_controller.dart';
@@ -390,8 +391,13 @@ class _NovelReaderState extends ConsumerState<NovelReader> {
             return Padding(
               key: _keys.putIfAbsent(index, () => GlobalKey()),
               padding: EdgeInsets.only(bottom: _paragraphGap),
+              // 一图一页：插图独占整个正文视口（高度 = 屏高 - 上下留白，
+              // 与 ListView 的 fromLTRB(24, 64, 24, 88) 对应）
               child: imageUrl != null
-                  ? _ParagraphImage(url: imageUrl)
+                  ? SizedBox(
+                      height: MediaQuery.of(context).size.height - 64 - 88,
+                      child: _ParagraphImage(url: imageUrl),
+                    )
                   : Text(
                       paragraph,
                       style: TextStyle(
@@ -408,11 +414,14 @@ class _NovelReaderState extends ConsumerState<NovelReader> {
   }
 
   /// 插图段：<!--image-->URL<!--image-->（可带 <!--epub-image:...--> 尾注）
+  ///
+  /// 取**第一对**标记内的 URL：旧实现用 lastIndexOf，多图连排的段落会把
+  /// 中间所有标记吞进 URL（log 出现整串 <!--image--> 流的根因）。
   String? _imageUrlOf(String paragraph) {
     const marker = '<!--image-->';
     if (!paragraph.startsWith(marker)) return null;
-    final end = paragraph.lastIndexOf(marker);
-    if (end <= marker.length) return null;
+    final end = paragraph.indexOf(marker, marker.length);
+    if (end < 0) return null;
     return paragraph.substring(marker.length, end).trim();
   }
 
@@ -576,6 +585,22 @@ class _NextChapterCard extends StatelessWidget {
 }
 
 /// 插图段：网络图 + 载入/失败占位
+/// wenku8 图片域防盗链要求 Referer/UA（协议调研 §4），否则 403。
+Map<String, String>? _imageHeaders(String url) {
+  final host = Uri.tryParse(url)?.host.toLowerCase() ?? '';
+  final isWenku8Image = host.endsWith('.wenku8.com') ||
+      host.endsWith('.wenku8.net') ||
+      host.endsWith('.wkcdn.com') ||
+      host.endsWith('.777743.xyz');
+  if (!isWenku8Image) return null;
+  return const {
+    'Referer': 'https://www.wenku8.cc/',
+    'user-agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+            '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+  };
+}
+
 class _ParagraphImage extends StatelessWidget {
   const _ParagraphImage({required this.url});
 
@@ -587,6 +612,7 @@ class _ParagraphImage extends StatelessWidget {
       borderRadius: BorderRadius.circular(2),
       child: Image.network(
         url,
+        headers: _imageHeaders(url),
         fit: BoxFit.contain,
         loadingBuilder: (_, child, progress) => progress == null
             ? child
@@ -607,7 +633,7 @@ class _ParagraphImage extends StatelessWidget {
               const Icon(Icons.broken_image, color: iconPlaceholder, size: 40),
               const SizedBox(height: 8),
               TextButton(
-                onPressed: () {},
+                onPressed: () {logError(url + err.toString());},
                 child: const Text('插图加载失败'),
               ),
             ],
