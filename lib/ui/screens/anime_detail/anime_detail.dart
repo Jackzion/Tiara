@@ -285,9 +285,6 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
       );
     }
 
-    // 栏高 = 两栏较高者；左栏用 Spacer 把元信息压到底，右栏同样把标签压到底，
-    // 于是「标签末行」与「收藏数」共底。简介块是定高内部滚动框，所以右栏不会
-    // 被超长简介拉长；展开标签时两栏一起变高，底边依然对齐。
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -5,6 +5,7 @@ import 'package:movies/data/library/library_codec.dart';
 import 'package:movies/data/models/anime_details.dart';
 import 'package:movies/data/models/genre.dart';
 import 'package:movies/ui/theme/archive_tokens.dart';
+import 'package:movies/ui/widgets/archive/archive_synopsis_block.dart';
 import 'package:movies/ui/widgets/archive/archive_ui.dart';
 
 /// 详情页右栏：剧情简介 → 章节 → 标签，三段档案索引。
@@ -32,7 +33,7 @@ class AnimeOverview extends StatefulWidget {
   /// 宽屏两栏时为 true：
   final bool fillHeight;
 
-  /// 简介滚动框的高度（仅 [fillHeight] 生效），约五行正文。
+  /// the height of the body area in the folded state of the block
   final double synopsisHeight;
 
   const AnimeOverview({
@@ -45,7 +46,7 @@ class AnimeOverview extends StatefulWidget {
     this.resume,
     this.onResume,
     this.fillHeight = false,
-    this.synopsisHeight = 150,
+    this.synopsisHeight = 130,
   });
 
   @override
@@ -90,8 +91,6 @@ class _AnimeOverviewState extends State<AnimeOverview> {
     final resumeCount = _resumeEpisodeCount;
     final episodes = resumeCount > 0 ? resumeCount : _episodes;
 
-    final synopsisChars = synopsisLines.fold<int>(0, (sum, line) => sum + line.length);
-
     Widget synopsisBody() => Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -105,23 +104,17 @@ class _AnimeOverviewState extends State<AnimeOverview> {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: widget.fillHeight ? MainAxisSize.max : MainAxisSize.min,
+      // 自然高度：IntrinsicHeight 两栏结构按最高者定高，右栏不再定高约束
+      mainAxisSize: MainAxisSize.min,
       children: [
         if (synopsisLines.isNotEmpty) ...[
-          const ArchiveSection(title: '剧情简介', code: '01 / SYNOPSIS'),
-          const SizedBox(height: 12),
-          // 只有剧情简介自己有滚动框：内容长就在块内滚，页面不被拉长。
-          // 短简介不套框，避免留出一片空白。
-          if (widget.fillHeight && synopsisChars > 200)
-            SizedBox(
-              height: widget.synopsisHeight,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.only(right: 8),
-                child: synopsisBody(),
-              ),
-            )
-          else
-            synopsisBody(),
+          // 档案式简介区块：长内容折叠+底部渐隐，点击展开为 Stack 浮层
+          ArchiveSynopsisBlock(
+            code: '01 / SYNOPSIS',
+            title: '剧情简介',
+            collapsedHeight: widget.synopsisHeight,
+            child: synopsisBody(),
+          ),
           const SizedBox(height: 18),
         ],
         ArchiveSection(
@@ -149,8 +142,7 @@ class _AnimeOverviewState extends State<AnimeOverview> {
         const SizedBox(height: 14),
         if (episodes > 0) _buildChapterButtons(episodes),
         if (genres.isNotEmpty) ...[
-          // 宽屏：标签被推到栏底，与左栏元信息共底
-          if (widget.fillHeight) const Spacer() else const SizedBox(height: 28),
+          const SizedBox(height: 28),
           ArchiveSection(
             title: '标签',
             code: '03 / TAGS',
