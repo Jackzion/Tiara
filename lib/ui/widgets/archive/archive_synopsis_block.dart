@@ -10,7 +10,8 @@ import 'package:movies/ui/theme/archive_tokens.dart';
 /// - Body：折叠态固定高度裁切 + 底部 48px 渐隐
 ///
 /// 交互：点击切换折叠/展开（箭头 180° 翻转，300ms ease-out 原位增减高度）。
-/// **原位折叠语义**：展开在文档流内长高（不浮层覆盖）；折叠态滚动锁定，
+/// **原位折叠语义**：展开在文档流内长高（不浮层覆盖）；折叠态整棵子树
+/// 滚动锁定（目录等内部滚动容器也不响应），滚动交给外层页面；
 /// 展开态内容超出最大高度时内部滚动。
 /// 内容不超出折叠高度时自动退化为普通区块（无渐隐/箭头/交互）。
 class ArchiveSynopsisBlock extends StatefulWidget {
@@ -178,6 +179,15 @@ class _ArchiveSynopsisBlockState extends State<ArchiveSynopsisBlock> {
     final measured = KeyedSubtree(key: _bodyKey, child: widget.child);
     final bg = widget.fadeColor ?? ArchivePalette.background;
 
+    // 折叠态同时锁住子树里的滚动容器（目录、分页列表等）：
+    // 内部不再响应拖动/滚轮，滚动交给外层页面。
+    final body = _expanded
+        ? measured
+        : ScrollConfiguration(
+            behavior: const _LockedScrollBehavior(),
+            child: measured,
+          );
+
     final double target;
     if (_overflowing == false) {
       target = _contentHeight; // 放得下：自然高度
@@ -196,7 +206,7 @@ class _ArchiveSynopsisBlockState extends State<ArchiveSynopsisBlock> {
               // 仅展开态允许滚动
               physics: _expanded ? null : const NeverScrollableScrollPhysics(),
               padding: const EdgeInsets.only(right: 8),
-              child: measured,
+              child: body,
             ),
           ),
           if (_overflowing == true && !_expanded)
@@ -225,4 +235,14 @@ class _ArchiveSynopsisBlockState extends State<ArchiveSynopsisBlock> {
       ),
     );
   }
+}
+
+/// 折叠态下让子树里所有滚动容器拒绝用户滚动（拖动、滚轮、键盘），
+/// 滚动事件因此留给外层页面，而不是卡在目录/列表里。
+class _LockedScrollBehavior extends ScrollBehavior {
+  const _LockedScrollBehavior();
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) =>
+      const NeverScrollableScrollPhysics();
 }

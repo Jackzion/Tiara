@@ -8,6 +8,7 @@ import 'package:movies/data/models/genre.dart';
 import 'package:movies/data/models/novel_source.dart';
 import 'package:movies/providers.dart';
 import 'package:movies/ui/theme/archive_tokens.dart';
+import 'package:movies/ui/widgets/archive/archive_chapter_list.dart';
 import 'package:movies/ui/widgets/archive/archive_synopsis_block.dart';
 import 'package:movies/ui/widgets/archive/archive_ui.dart';
 
@@ -135,10 +136,22 @@ class _AnimeOverviewState extends ConsumerState<AnimeOverview> {
         ],
         const SizedBox(height: 14),
         // 原 bangumi 话数格子已下线：只有存在浏览历史才显示章节 UI，
-        // 并按 resume.type（details.type 字符串）分流 —— 漫画（roads 话数）、
-        // 小说（source 目录）。
-        if (resume != null && resume.isComic) _buildComicChapterList(resume),
-        if (resume != null && resume.isNovel) _buildNovelChapterList(resume),
+        // 并按 resume.type（details.type 字符串）分流 —— 漫画（roads 话数）、小说（source 目录）。
+        if (resume != null && resume.isComic)
+          ArchiveSynopsisBlock(
+            code: '01 / SYNOPSIS',
+            title: '剧情简介',
+            collapsedHeight: 200,
+            child: _buildComicChapterList(resume),
+          ),
+        if (resume != null && resume.isNovel)
+          ArchiveSynopsisBlock(
+            code: '01 / SYNOPSIS',
+            title: '剧情简介',
+            collapsedHeight: 200,
+            child: _buildNovelChapterList(resume),
+          ),
+
         if (genres.isNotEmpty) ...[
           const SizedBox(height: 28),
           ArchiveSection(
@@ -171,8 +184,9 @@ class _AnimeOverviewState extends ConsumerState<AnimeOverview> {
     final bookId = resume.remoteId;
     if (sourceKey == null || bookId == null) return const [];
     try {
-      final detail =
-          await ref.read(novelRepositoryProvider).loadInfo(sourceKey, bookId);
+      final detail = await ref
+          .read(novelRepositoryProvider)
+          .loadInfo(sourceKey, bookId);
       return detail.chapters;
     } catch (_) {
       // 目录拉取失败不阻塞页面（显示为空）
@@ -184,8 +198,7 @@ class _AnimeOverviewState extends ConsumerState<AnimeOverview> {
   Widget _buildComicChapterList(LibraryResume resume) {
     final roads = _resumeRoads;
     if (roads.isEmpty) return const SizedBox.shrink();
-    final roadIndex =
-        resume.lastRoadIndex.clamp(0, roads.length - 1);
+    final roadIndex = resume.lastRoadIndex.clamp(0, roads.length - 1);
     final count = roads[roadIndex].data.length;
     if (count == 0) return const SizedBox.shrink();
     final limit = _expandedChapters || count <= 24 ? count : 24;
@@ -217,40 +230,35 @@ class _AnimeOverviewState extends ConsumerState<AnimeOverview> {
 
   /// 小说章节区：目录来自 novel source（含分卷），当前章高亮
   Widget _buildNovelChapterList(LibraryResume resume) {
-    final tone = ArchiveTone.of(context);
     return FutureBuilder<List<NovelChapter>>(
       future: _novelChaptersFuture ??= _loadNovelChapters(resume),
       builder: (context, snapshot) {
-        final chapters = snapshot.data ?? const <NovelChapter>[];
         if (!snapshot.hasData) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: LinearProgressIndicator(minHeight: 2),
+          return ArchiveChapterListSkeleton(
+            height: widget.fillHeight ? 380 : 320,
           );
         }
+        final chapters = snapshot.data ?? const <NovelChapter>[];
         if (chapters.isEmpty) return const SizedBox.shrink();
-        final limit =
-            _expandedChapters || chapters.length <= 24 ? chapters.length : 24;
-        return Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: [
-            for (var i = 0; i < limit; i++)
-              _ChapterChip(
-                label: chapters[i].title,
-                highlight: chapters[i].chapterId == resume.lastUnitId,
-                onTap: () => widget.onNovelChapterTap?.call(chapters[i]),
-              ),
-            if (chapters.length > limit)
-              ArchiveTextButton(
-                onPressed: () =>
-                    setState(() => _expandedChapters = !_expandedChapters),
-                child: Text(
-                  '还有 ${chapters.length - limit} 章',
-                  style: ArchiveType.micro.copyWith(color: tone.muted),
-                ),
+        final byId = {
+          for (final chapter in chapters) chapter.chapterId: chapter,
+        };
+        return ArchiveChapterList(
+          chapters: [
+            for (final chapter in chapters)
+              ArchiveChapterEntry(
+                id: chapter.chapterId,
+                title: chapter.title,
+                volumeTitle: chapter.volumeTitle,
               ),
           ],
+          currentId: resume.lastUnitId,
+          onTap: widget.onNovelChapterTap == null
+              ? null
+              : (entry) {
+                  final chapter = byId[entry.id];
+                  if (chapter != null) widget.onNovelChapterTap!(chapter);
+                },
         );
       },
     );

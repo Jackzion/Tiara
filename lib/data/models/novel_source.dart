@@ -154,10 +154,6 @@ class NovelProgress {
       );
 }
 
-/// 已装载的小说源规则（Dart 侧门面，闭包由解析器装配）
-///
-/// 约定 JS 规则实现 book.loadInfo / book.loadText / search.load 三个入口，
-/// 与漫画源的 comic.loadInfo / comic.loadEp / search.load 对称。
 class NovelSource {
   const NovelSource({
     required this.key,

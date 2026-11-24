@@ -382,6 +382,7 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
           animeDetail: details,
         ),
       );
+      if (!mounted) return;
       ref.invalidate(animeResumeProvider(widget.animeId));
       return;
     }
@@ -400,6 +401,7 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
           epTitle: resume.lastUnitTitle ?? '',
         ),
       );
+      if (!mounted) return;
       ref.invalidate(animeResumeProvider(widget.animeId));
       return;
     }
@@ -426,6 +428,7 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
         animeDetail: details,
       ),
     );
+    if (!mounted) return;
     ref.invalidate(animeResumeProvider(widget.animeId));
   }
 
@@ -455,6 +458,7 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
         animeDetail: details,
       ),
     );
+    if (!mounted) return;
     ref.invalidate(animeResumeProvider(widget.animeId));
   }
 
@@ -475,6 +479,7 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
         animeDetail: details,
       ),
     );
+    if (!mounted) return;
     ref.invalidate(animeResumeProvider(widget.animeId));
   }
 
