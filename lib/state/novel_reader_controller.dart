@@ -159,6 +159,8 @@ class NovelReaderController extends _$NovelReaderController {
     double fraction, {
     double? fontSize,
     int textOffset = 0,
+    int? bangumiId,
+    String? type,
   }) {
     if (!ref.mounted) return;
     final current = state.value;
@@ -172,6 +174,8 @@ class NovelReaderController extends _$NovelReaderController {
             title: current.bookTitle,
             chapterId: _chapterId,
             chapterTitle: current.chapterTitle,
+            bangumiId: bangumiId,
+            type: type,
             progress: NovelProgress(
               paragraphIndex: paragraphIndex,
               fraction: fraction.clamp(0, 1),

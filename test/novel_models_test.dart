@@ -92,11 +92,13 @@ void main() {
         title: '雾中站台',
         chapterId: 'c2',
         chapterTitle: '第 2 章',
+        bangumiId: 42,
+        type: '小说',
         progress: const NovelProgress(paragraphIndex: 5, fraction: 0.5),
       );
       expect(fake.last, isNotNull);
-      expect(fake.last!.uid, 'novel:demo:demo-fog');
-      expect(fake.last!.type, 2);
+      expect(fake.last!.uid, '42');
+      expect(fake.last!.type, '小说');
       expect(fake.last!.lastUnitId, 'c2');
       expect(fake.last!.lastUnitTitle, '第 2 章');
       final progress = NovelProgress.fromJson(

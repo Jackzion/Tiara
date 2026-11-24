@@ -148,8 +148,8 @@ class _FakeDatabase implements IDatabase {
     if (savedProgressParagraph <= 0) return null;
     return LibraryResume(
       id: 1,
-      uid: 'novel:$sourceKey:$bookId',
-      type: 1,
+      uid: '42',
+      type: '小说',
       title: '雾中站台',
       updatedAt: DateTime.now(),
       sourceKey: sourceKey,

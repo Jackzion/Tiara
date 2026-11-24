@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:movies/data/database/models/library_models.dart';
 import 'package:movies/data/database/models/rules_model.dart';
 import 'package:movies/data/library/library_codec.dart';
 import 'package:movies/data/models/anime_details.dart';
 import 'package:movies/data/models/genre.dart';
+import 'package:movies/data/models/novel_source.dart';
+import 'package:movies/providers.dart';
 import 'package:movies/ui/theme/archive_tokens.dart';
 import 'package:movies/ui/widgets/archive/archive_synopsis_block.dart';
 import 'package:movies/ui/widgets/archive/archive_ui.dart';
 
 /// 详情页右栏：剧情简介 → 章节 → 标签，三段档案索引。
-class AnimeOverview extends StatefulWidget {
+class AnimeOverview extends ConsumerStatefulWidget {
   final AnimeDetails details;
 
   /// 兼容旧参数（新布局不再使用上移重叠）
@@ -23,6 +26,12 @@ class AnimeOverview extends StatefulWidget {
 
   /// 「开始观看」等：不带集号
   final VoidCallback? onWatchTap;
+
+  /// 漫画：点话号（1-based，当前线路）直接进阅读器（resume 存在时可用）
+  final void Function(int episode)? onComicEpisodeTap;
+
+  /// 小说：点章直接进阅读器（resume 存在时可用）
+  final void Function(NovelChapter chapter)? onNovelChapterTap;
 
   /// 本地书库里的续看信息（没有则为 null）
   final LibraryResume? resume;
@@ -41,6 +50,8 @@ class AnimeOverview extends StatefulWidget {
     required this.details,
     this.onEpisodeTap,
     this.onWatchTap,
+    this.onComicEpisodeTap,
+    this.onNovelChapterTap,
     this.overlapHeight = 0,
     this.onTagTap,
     this.resume,
@@ -50,32 +61,17 @@ class AnimeOverview extends StatefulWidget {
   });
 
   @override
-  State<AnimeOverview> createState() => _AnimeOverviewState();
+  ConsumerState<AnimeOverview> createState() => _AnimeOverviewState();
 }
 
-class _AnimeOverviewState extends State<AnimeOverview> {
+class _AnimeOverviewState extends ConsumerState<AnimeOverview> {
   bool _expandedChapters = false;
   bool _expandedTags = false;
 
   String _pad(int n) => n.toString().padLeft(2, '0');
 
-  int get _episodes => widget.details.isBook
-      ? widget.details.chapterCount ?? 0
-      : widget.details.episodes ?? 0;
-
-  /// 有续看数据时用存下来的线路替换 bangumi 的集数：
-  /// 这样章节格子和实际可播放的分集一一对应，而不是 bangumi 的条目集数。
+  /// 章节区数据源：resume 里记录的线路（roads.data = 每话分集 URL）
   List<Road> get _resumeRoads => decodeRoads(widget.resume?.roadsJson);
-
-  int get _resumeEpisodeCount {
-    final roads = _resumeRoads;
-    if (roads.isEmpty) return 0;
-    final index = (widget.resume?.lastRoadIndex ?? 0).clamp(
-      0,
-      roads.length - 1,
-    );
-    return roads[index].data.length;
-  }
 
   bool get _hasResume =>
       widget.resume != null &&
@@ -86,10 +82,8 @@ class _AnimeOverviewState extends State<AnimeOverview> {
   Widget build(BuildContext context) {
     final details = widget.details;
     final genres = details.genres ?? <Genre>[];
+    final resume = widget.resume;
     final synopsisLines = _splitSynopsis(details.synopsis ?? '');
-    // 有本地线路时以线路集数为准，否则用 bangumi 的
-    final resumeCount = _resumeEpisodeCount;
-    final episodes = resumeCount > 0 ? resumeCount : _episodes;
 
     Widget synopsisBody() => Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -140,7 +134,11 @@ class _AnimeOverviewState extends State<AnimeOverview> {
           ),
         ],
         const SizedBox(height: 14),
-        if (episodes > 0) _buildChapterButtons(episodes),
+        // 原 bangumi 话数格子已下线：只有存在浏览历史才显示章节 UI，
+        // 并按 resume.type（details.type 字符串）分流 —— 漫画（roads 话数）、
+        // 小说（source 目录）。
+        if (resume != null && resume.isComic) _buildComicChapterList(resume),
+        if (resume != null && resume.isNovel) _buildNovelChapterList(resume),
         if (genres.isNotEmpty) ...[
           const SizedBox(height: 28),
           ArchiveSection(
@@ -165,32 +163,96 @@ class _AnimeOverviewState extends State<AnimeOverview> {
   /// 折叠时显示的标签数
   static const _tagPageSize = 12;
 
-  Widget _buildChapterButtons(int episodes) {
-    final limit = _expandedChapters || episodes <= 24 ? episodes : 24;
-    final shown = episodes.clamp(1, limit);
+  /// 小说目录 Future（按 source 惰性取一次）
+  Future<List<NovelChapter>>? _novelChaptersFuture;
+
+  Future<List<NovelChapter>> _loadNovelChapters(LibraryResume resume) async {
+    final sourceKey = resume.sourceKey;
+    final bookId = resume.remoteId;
+    if (sourceKey == null || bookId == null) return const [];
+    try {
+      final detail =
+          await ref.read(novelRepositoryProvider).loadInfo(sourceKey, bookId);
+      return detail.chapters;
+    } catch (_) {
+      // 目录拉取失败不阻塞页面（显示为空）
+      return const [];
+    }
+  }
+
+  /// 漫画章节区：话数来自 resume 记录的线路（roads.data = 分集 URL）
+  Widget _buildComicChapterList(LibraryResume resume) {
+    final roads = _resumeRoads;
+    if (roads.isEmpty) return const SizedBox.shrink();
+    final roadIndex =
+        resume.lastRoadIndex.clamp(0, roads.length - 1);
+    final count = roads[roadIndex].data.length;
+    if (count == 0) return const SizedBox.shrink();
+    final limit = _expandedChapters || count <= 24 ? count : 24;
     final tone = ArchiveTone.of(context);
 
     return Wrap(
       spacing: 6,
       runSpacing: 6,
       children: [
-        for (var n = 1; n <= shown; n++)
+        for (var n = 1; n <= limit; n++)
           _ChapterChip(
             label: _pad(n),
-            // 上次看到的那一集用墨底标出来
-            highlight: n == widget.resume?.lastEpisode,
-            onTap: () => widget.onEpisodeTap?.call(n),
+            // 上次看到的那一话用墨底标出来
+            highlight: n == resume.lastEpisode,
+            onTap: () => widget.onComicEpisodeTap?.call(n),
           ),
-        if (episodes > limit)
+        if (count > limit)
           ArchiveTextButton(
             onPressed: () =>
                 setState(() => _expandedChapters = !_expandedChapters),
             child: Text(
-              '还有 ${episodes - limit} 话',
+              '还有 ${count - limit} 话',
               style: ArchiveType.micro.copyWith(color: tone.muted),
             ),
           ),
       ],
+    );
+  }
+
+  /// 小说章节区：目录来自 novel source（含分卷），当前章高亮
+  Widget _buildNovelChapterList(LibraryResume resume) {
+    final tone = ArchiveTone.of(context);
+    return FutureBuilder<List<NovelChapter>>(
+      future: _novelChaptersFuture ??= _loadNovelChapters(resume),
+      builder: (context, snapshot) {
+        final chapters = snapshot.data ?? const <NovelChapter>[];
+        if (!snapshot.hasData) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: LinearProgressIndicator(minHeight: 2),
+          );
+        }
+        if (chapters.isEmpty) return const SizedBox.shrink();
+        final limit =
+            _expandedChapters || chapters.length <= 24 ? chapters.length : 24;
+        return Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            for (var i = 0; i < limit; i++)
+              _ChapterChip(
+                label: chapters[i].title,
+                highlight: chapters[i].chapterId == resume.lastUnitId,
+                onTap: () => widget.onNovelChapterTap?.call(chapters[i]),
+              ),
+            if (chapters.length > limit)
+              ArchiveTextButton(
+                onPressed: () =>
+                    setState(() => _expandedChapters = !_expandedChapters),
+                child: Text(
+                  '还有 ${chapters.length - limit} 章',
+                  style: ArchiveType.micro.copyWith(color: tone.muted),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 

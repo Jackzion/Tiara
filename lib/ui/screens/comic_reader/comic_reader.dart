@@ -93,6 +93,8 @@ class _ComicReaderState extends ConsumerState<ComicReader> {
           title: widget.title,
           epId: widget.epId,
           epTitle: widget.epTitle,
+          bangumiId: widget.animeDetail?.bangumiId,
+          type: widget.animeDetail?.type,
           posterUrl: widget.animeDetail?.imageUrl
         )
         .catchError((Object error) {

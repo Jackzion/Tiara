@@ -50,7 +50,7 @@ final class SearchStateProvider
   }
 }
 
-String _$searchStateHash() => r'65d0a1bba2e536b061ec772771a3b7c6630bc4f9';
+String _$searchStateHash() => r'5d1695f2bc52736d00828e986a012343cd25b2e2';
 
 /// 跨页搜索请求通道：谁搜谁写，Genre 页是唯一消费方
 /// keepAlive：提交方（全局搜索/详情页）写入时消费页往往还没 build，

@@ -55,7 +55,6 @@ class DriftDatabase implements IDatabase {
     await animeDatabase.into(animeDatabase.libraryEntry).insert(
       LibraryEntryCompanion.insert(
         uid: _animeUid(favorite.animeId),
-        type: 0,
         bangumiId: Value(favorite.animeId),
         title: favorite.title,
         posterUrl: Value(favorite.posterPath),
@@ -83,7 +82,7 @@ class DriftDatabase implements IDatabase {
     await animeDatabase.into(animeDatabase.libraryEntry).insert(
       LibraryEntryCompanion.insert(
         uid: update.uid,
-        type: update.type,
+        type: Value(update.type),
         bangumiId: Value(update.bangumiId),
         title: update.title,
         posterUrl: Value(update.posterUrl ?? ''),
@@ -104,6 +103,11 @@ class DriftDatabase implements IDatabase {
       ),
       onConflict: DoUpdate(
         (old) => LibraryEntryCompanion(
+          // bangumiId 仅在提供时回填（历史记录可随下次保存治愈），
+          // 不提供则保留原值 —— 漫画/小说的老记录就是靠这条回填的
+          bangumiId: update.bangumiId != null
+              ? Value(update.bangumiId!)
+              : const Value.absent(),
           title: Value(update.title),
           posterUrl: update.posterUrl != null
               ? Value(update.posterUrl!)
@@ -140,20 +144,31 @@ class DriftDatabase implements IDatabase {
   }
 
   @override
-  Future<LibraryResume?> findAnime(int bangumiId) =>
-      _findByUid('anime:$bangumiId');
+  Future<LibraryResume?> findAnime(int bangumiId) => _findByUid('$bangumiId');
 
   @override
   Future<LibraryResume?> findComic({
     required String sourceKey,
     required String comicId,
-  }) => _findByUid('comic:$sourceKey:$comicId');
+  }) =>
+      _findBySource(sourceKey, comicId);
 
   @override
   Future<LibraryResume?> findNovel({
     required String sourceKey,
     required String bookId,
-  }) => _findByUid('novel:$sourceKey:$bookId');
+  }) =>
+      _findBySource(sourceKey, bookId);
+
+  /// 旧复合 uid 的兜底查找（uid 已收敛为 bangumiId 后按源列查）
+  Future<LibraryResume?> _findBySource(String sourceKey, String remoteId) async {
+    final row = await (animeDatabase.select(animeDatabase.libraryEntry)
+          ..where((t) => t.sourceKey.equals(sourceKey) & t.remoteId.equals(remoteId))
+          ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])
+          ..limit(1))
+        .getSingleOrNull();
+    return row == null ? null : _toResume(row);
+  }
 
   Future<LibraryResume?> _findByUid(String uid) async {
     final row = await (animeDatabase.select(animeDatabase.libraryEntry)
@@ -242,7 +257,7 @@ class DriftDatabase implements IDatabase {
     return row.read<int>('c');
   }
 
-  static String _animeUid(int bangumiId) => 'anime:$bangumiId';
+  static String _animeUid(int bangumiId) => '$bangumiId';
 
   /// 旧 UI 模型映射：评分/简介/banner 不再持久化，回源获取
   DBFavorite _toFavorite(LibraryEntryData row) => DBFavorite(

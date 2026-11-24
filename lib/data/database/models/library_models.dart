@@ -21,11 +21,11 @@ class LibraryPlayUpdate {
     this.lastUnitTitle,
   });
 
-  /// anime:<bangumiId> / comic:<sourceKey>:<comicId>
+  /// 记录键 = bangumiId 的纯数字串（动画/漫画/小说共用一条）
   final String uid;
 
-  /// 0 = 动画，1 = 漫画, 2 = 小说
-  final int type;
+  /// 条目类型：直接存 details.type（'TV'/'剧场版'/'漫画'/'小说'…）
+  final String? type;
 
   final String title;
   final int? bangumiId;
@@ -70,7 +70,9 @@ class LibraryResume {
 
   final int id;
   final String uid;
-  final int type;
+
+  /// 条目类型：直接存 details.type（'TV'/'剧场版'/'漫画'/'小说'…）
+  final String? type;
   final String title;
   final DateTime updatedAt;
 
@@ -90,10 +92,14 @@ class LibraryResume {
   final String? lastUnitId;
   final String? lastUnitTitle;
 
-  bool get isComic => type == 1;
+  bool get isComic => type == '漫画';
+  bool get isNovel => type == '小说';
 
-  /// 「第 3 集」「第 12 话」
-  String get progressLabel => isComic
-      ? (lastUnitTitle?.isNotEmpty == true ? lastUnitTitle! : '继续阅读')
-      : (lastEpisode != null ? '第 $lastEpisode 集' : '继续观看');
+  /// 上次位置标签：漫画/小说显示单元名（话名/章名），动画显示集数
+  String get progressLabel {
+    if (isComic || isNovel) {
+      return lastUnitTitle?.isNotEmpty == true ? lastUnitTitle! : '继续阅读';
+    }
+    return lastEpisode != null ? '第 $lastEpisode 集' : '继续观看';
+  }
 }

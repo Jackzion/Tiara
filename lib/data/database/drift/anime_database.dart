@@ -8,10 +8,12 @@ class LibraryEntry extends Table {
   /// 自增行 id：兼容 UI 侧按 int id 删除的旧接口
   IntColumn get id => integer().autoIncrement()();
 
+  /// 记录键 = bangumiId 的纯数字串（同一 bangumi 条目只保留最近一次
+  /// 观看/阅读位置，动画/漫画/小说共用一条记录）
   TextColumn get uid => text().unique()();
 
-  /// 0 = 动画，1 = 漫画/小说（与 bangumi subjectType 的 isBook 对齐）
-  IntColumn get type => integer()();
+  /// 条目类型：直接存 details.type（'TV'/'剧场版'/'漫画'/'小说'…）
+  TextColumn get type => text().nullable()();
 
   IntColumn get bangumiId => integer().nullable()();
 
@@ -92,7 +94,7 @@ class AnimeDatabase extends _$AnimeDatabase {
   AnimeDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -108,7 +110,7 @@ class AnimeDatabase extends _$AnimeDatabase {
             INSERT OR IGNORE INTO library_entry
               (uid, type, bangumi_id, title, poster_url, favorite,
                created_at, updated_at)
-            SELECT 'anime:' || anime_id, 0, anime_id, title, poster_path,
+            SELECT CAST(anime_id AS TEXT), 'TV', anime_id, title, poster_path,
                    favorite,
                    CAST(release_date AS INTEGER),
                    CAST(release_date AS INTEGER)
@@ -126,6 +128,34 @@ class AnimeDatabase extends _$AnimeDatabase {
       if (from < 4) {
         // 详情快照缓存：独立表，与用户数据分离，便于整表清理
         await m.createTable(subjectCache);
+      }
+      if (from < 5) {
+        // type 列 int→text（直接存 details.type），uid 收敛为 bangumiId 纯数字串。
+        // 旧类型映射：0→TV，1→漫画，2→小说（旧注释语义）。
+        await customStatement(
+          'ALTER TABLE library_entry RENAME TO library_entry_old',
+        );
+        await m.createTable(libraryEntry);
+        await customStatement('''
+          INSERT INTO library_entry
+            (id, uid, type, bangumi_id, title, poster_url, favorite,
+             last_road_index, last_episode, last_episode_url,
+             source_key, remote_id, last_unit_id, last_unit_title,
+             detail_url, rule_json, roads_json, play_params_json,
+             created_at, updated_at)
+          SELECT id,
+                 CASE WHEN bangumi_id IS NULL THEN uid
+                      ELSE CAST(bangumi_id AS TEXT) END,
+                 CASE type WHEN 0 THEN 'TV' WHEN 1 THEN '漫画'
+                      WHEN 2 THEN '小说' ELSE '' END,
+                 bangumi_id, title, poster_url, favorite,
+                 last_road_index, last_episode, last_episode_url,
+                 source_key, remote_id, last_unit_id, last_unit_title,
+                 detail_url, rule_json, roads_json, play_params_json,
+                 created_at, updated_at
+          FROM library_entry_old
+        ''');
+        await customStatement('DROP TABLE library_entry_old');
       }
     },
   );

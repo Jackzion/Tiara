@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lumberdash/lumberdash.dart';
+import 'package:movies/data/models/anime_details.dart';
 import 'package:movies/data/models/novel_source.dart';
 import 'package:movies/providers.dart';
 import 'package:movies/router/app_routes.dart';
@@ -140,6 +141,7 @@ class NovelReader extends ConsumerStatefulWidget {
     required this.chapterId,
     required this.title,
     this.chapterTitle = '',
+    this.animeDetail,
     this.initialParagraph,
     this.initialOffset,
     super.key,
@@ -154,6 +156,9 @@ class NovelReader extends ConsumerStatefulWidget {
 
   /// 章名（入参兜底，正常以 controller 加载的为准）
   final String chapterTitle;
+
+  /// 条目详情（书库记录挂靠：uid=bangumiId、type=details.type；从详情页进入时带上）
+  final AnimeDetails? animeDetail;
 
   /// 跨章跳转锚点（全书搜索点击结果时传入；null = 按书库进度恢复）
   final int? initialParagraph;
@@ -276,7 +281,10 @@ class _NovelReaderState extends ConsumerState<NovelReader> {
             widget.chapterId,
           ).notifier,
         )
-        .touchProgress(paragraph, fraction ?? 0, fontSize: _prefs.fontSize);
+        .touchProgress(paragraph, fraction ?? 0,
+            fontSize: _prefs.fontSize,
+            bangumiId: widget.animeDetail?.bangumiId,
+            type: widget.animeDetail?.type);
   }
 
   /// 翻页模式：页变更 → 更新锚点/页码标签/进度
@@ -406,6 +414,7 @@ class _NovelReaderState extends ConsumerState<NovelReader> {
         chapterId: chapter.chapterId,
         title: widget.title,
         chapterTitle: chapter.title,
+        animeDetail: widget.animeDetail,
         initialParagraph: paragraph,
         initialOffset: offset,
       ),
@@ -457,6 +466,7 @@ class _NovelReaderState extends ConsumerState<NovelReader> {
         chapterId: chapterId,
         title: widget.title,
         chapterTitle: chapterTitle,
+        animeDetail: widget.animeDetail,
       ),
     );
   }

@@ -50,8 +50,9 @@ class _ArchiveSynopsisBlockState extends State<ArchiveSynopsisBlock> {
   final _bodyKey = GlobalKey();
   bool _expanded = false;
 
-  /// 内容是否超出折叠高度（不超出就不提供折叠交互）
-  bool _overflowing = false;
+  /// 内容是否超出折叠高度。null = 未测（首帧必须先按封顶排版，
+  /// 否则未裁切的正文会造成瞬时溢出报错）。
+  bool? _overflowing;
 
   /// 内容实测高度（展开态高度 = min(内容, expandedHeight)）
   double _contentHeight = 0;
@@ -85,7 +86,7 @@ class _ArchiveSynopsisBlockState extends State<ArchiveSynopsisBlock> {
   }
 
   void _toggle() {
-    if (!_overflowing) return;
+    if (_overflowing != true) return;
     setState(() => _expanded = !_expanded);
   }
 
@@ -145,7 +146,7 @@ class _ArchiveSynopsisBlockState extends State<ArchiveSynopsisBlock> {
             child: Divider(height: 1, thickness: ArchiveGeometry.dividerWidth),
           ),
           const SizedBox(width: 10),
-          if (_overflowing)
+          if (_overflowing == true)
             SizedBox(
               width: 12,
               height: 12,
@@ -167,21 +168,26 @@ class _ArchiveSynopsisBlockState extends State<ArchiveSynopsisBlock> {
     );
   }
 
-  /// 正文槽位：原位折叠 —— 高度在折叠/展开间 300ms 过渡；
-  /// 折叠态锁定滚动 + 渐隐，展开态可滚动。
-  /// 不溢出时自然高度（无交互）。
+  /// 正文槽位：原位折叠，高度切换瞬时生效（不作高度动画 ——
+  /// IntrinsicHeight 的内在尺寸缓存不会跟随动画高度重算，会引发
+  /// 两栏结构的持续溢出；箭头翻转仍保留 300ms 过渡）。
+  ///
+  /// 三态：未测（首帧）先按折叠高度封顶排版，杜绝未裁切正文的瞬时溢出；
+  /// 确认放得下 → 自然高度；确认超出 → 折叠交互。
   Widget _buildSlot(ArchiveTone tone) {
     final measured = KeyedSubtree(key: _bodyKey, child: widget.child);
-    if (!_overflowing) return measured;
-
     final bg = widget.fadeColor ?? ArchivePalette.background;
-    final target = _expanded
-        ? math.min(_contentHeight, widget.expandedHeight)
-        : widget.collapsedHeight;
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
+    final double target;
+    if (_overflowing == false) {
+      target = _contentHeight; // 放得下：自然高度
+    } else if (_overflowing == true && _expanded) {
+      target = math.min(_contentHeight, widget.expandedHeight);
+    } else {
+      target = widget.collapsedHeight; // 折叠 / 未测
+    }
+
+    return SizedBox(
       height: target,
       child: Stack(
         children: [
@@ -193,7 +199,7 @@ class _ArchiveSynopsisBlockState extends State<ArchiveSynopsisBlock> {
               child: measured,
             ),
           ),
-          if (!_expanded)
+          if (_overflowing == true && !_expanded)
             Positioned(
               left: 0,
               right: 0,

@@ -22,6 +22,7 @@ class LibraryRepository {
     required PlayContext play,
     required int roadIndex,
     required int episodeIndex,
+    String? type,
     String? posterUrl,
   }) async {
     if (play.rule == null || play.roads.isEmpty) return;
@@ -31,8 +32,8 @@ class LibraryRepository {
     final safeEpisode = episodeIndex.clamp(0, road.data.length - 1);
     await database.savePlay(
       LibraryPlayUpdate(
-        uid: 'anime:${play.animeId}',
-        type: 0,
+        uid: '${play.animeId}',
+        type: type,
         title: play.title,
         bangumiId: play.animeId,
         detailUrl: play.detailUrl,
@@ -48,20 +49,24 @@ class LibraryRepository {
   }
 
   /// 进入漫画阅读器时调用：记住上次读到的那一话。
+  /// [type] 直接存 details.type（'漫画' 等）；uid = bangumiId 纯数字串。
   Future<void> saveComicRead({
     required String sourceKey,
     required String comicId,
     required String title,
     required String epId,
     required String epTitle,
+    int? bangumiId,
+    String? type,
     String? posterUrl
   }) async {
     if (sourceKey.isEmpty || comicId.isEmpty || epId.isEmpty) return;
     await database.savePlay(
       LibraryPlayUpdate(
-        uid: 'comic:$sourceKey:$comicId',
-        type: 1,
+        uid: bangumiId == null ? 'comic:$sourceKey:$comicId' : '$bangumiId',
+        type: type,
         title: title,
+        bangumiId: bangumiId,
         sourceKey: sourceKey,
         remoteId: comicId,
         lastUnitId: epId,
@@ -80,15 +85,18 @@ class LibraryRepository {
     required String title,
     required String chapterId,
     required String chapterTitle,
+    int? bangumiId,
+    String? type,
     String? posterUrl,
     NovelProgress? progress,
   }) async {
     if (sourceKey.isEmpty || bookId.isEmpty || chapterId.isEmpty) return;
     await database.savePlay(
       LibraryPlayUpdate(
-        uid: 'novel:$sourceKey:$bookId',
-        type: 2,
+        uid: bangumiId == null ? 'novel:$sourceKey:$bookId' : '$bangumiId',
+        type: type,
         title: title,
+        bangumiId: bangumiId,
         sourceKey: sourceKey,
         remoteId: bookId,
         lastUnitId: chapterId,

@@ -5,6 +5,7 @@ import 'package:lumberdash/lumberdash.dart';
 import 'package:movies/data/database/models/library_models.dart';
 import 'package:movies/data/library/library_codec.dart';
 import 'package:movies/data/models/anime_details.dart';
+import 'package:movies/data/models/novel_source.dart';
 import 'package:movies/data/models/play_context.dart';
 import 'package:movies/providers.dart';
 import 'package:movies/router/app_routes.dart';
@@ -254,7 +255,7 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
     final posterAndMeta = _buildPosterColumn(
       details,
       isWide: isWide,
-      stretch: isWide,
+      stretch: false,
     );
     final overview = AnimeOverview(
       details: details,
@@ -263,6 +264,12 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
       resume: resume,
       onResume: resume == null ? null : () => _resumePlay(resume, details),
       onEpisodeTap: (ep) => _openSourceSheet(details, preferredEpisode: ep),
+      onComicEpisodeTap: resume == null
+          ? null
+          : (ep) => _openComicEpisode(resume, details, ep),
+      onNovelChapterTap: resume == null
+          ? null
+          : (chapter) => _openNovelChapter(resume, details, chapter),
       onWatchTap: () => details.isBook
           ? _openBookEntryChooser(details)
           : _openSourceSheet(details, preferredEpisode: null),
@@ -285,15 +292,15 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
       );
     }
 
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(width: 260, child: posterAndMeta),
-          const SizedBox(width: 36),
-          Expanded(child: overview),
-        ],
-      ),
+    // 两栏自然高度、顶对齐（不强行等高）：IntrinsicHeight 对「Expanded +
+    // 折行文本」询问内在尺寸时宽度与实际布局不一致，会持续溢出。
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(width: 260, child: posterAndMeta),
+        const SizedBox(width: 36),
+        Expanded(child: overview),
+      ],
     );
   }
 
@@ -360,7 +367,7 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
   /// 续看/续读：有存下来的上下文就直接进播放器/阅读器，否则退回选源
   Future<void> _resumePlay(LibraryResume resume, AnimeDetails details) async {
     // 小说（uid 前缀 novel:）进 NovelReader；漫画进 ComicReader
-    if (resume.uid.startsWith('novel:')) {
+    if (resume.isNovel) {
       final sourceKey = resume.sourceKey;
       final bookId = resume.remoteId;
       final chapterId = resume.lastUnitId;
@@ -372,6 +379,7 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
           chapterId: chapterId,
           title: resume.title,
           chapterTitle: resume.lastUnitTitle ?? '',
+          animeDetail: details,
         ),
       );
       ref.invalidate(animeResumeProvider(widget.animeId));
@@ -422,6 +430,54 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
   }
 
   /// 打开视频源选择器
+  /// 漫画章节直跳：resume 当前线路的第 [episode] 话（1-based）直接进阅读器
+  Future<void> _openComicEpisode(
+    LibraryResume resume,
+    AnimeDetails details,
+    int episode,
+  ) async {
+    final roads = decodeRoads(resume.roadsJson);
+    if (roads.isEmpty || resume.sourceKey == null || resume.remoteId == null) {
+      return;
+    }
+    final road = roads[resume.lastRoadIndex.clamp(0, roads.length - 1)];
+    final i = episode - 1;
+    if (i < 0 || i >= road.data.length) return;
+    await context.router.push(
+      ComicReaderRoute(
+        sourceKey: resume.sourceKey!,
+        comicId: resume.remoteId!,
+        epId: road.data[i],
+        title: resume.title,
+        epTitle: i < road.identifier.length && road.identifier[i].isNotEmpty
+            ? road.identifier[i]
+            : '第 $episode 话',
+        animeDetail: details,
+      ),
+    );
+    ref.invalidate(animeResumeProvider(widget.animeId));
+  }
+
+  /// 小说章节直跳：novel source 目录里的章直接进阅读器
+  Future<void> _openNovelChapter(
+    LibraryResume resume,
+    AnimeDetails details,
+    NovelChapter chapter,
+  ) async {
+    if (resume.sourceKey == null || resume.remoteId == null) return;
+    await context.router.push(
+      NovelReaderRoute(
+        sourceKey: resume.sourceKey!,
+        bookId: resume.remoteId!,
+        chapterId: chapter.chapterId,
+        title: resume.title,
+        chapterTitle: chapter.title,
+        animeDetail: details,
+      ),
+    );
+    ref.invalidate(animeResumeProvider(widget.animeId));
+  }
+
   Future<void> _openSourceSheet(
     AnimeDetails details, {
     int? preferredEpisode,
@@ -540,6 +596,7 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
         chapterId: selection.chapterId,
         title: selection.title,
         chapterTitle: selection.chapterTitle,
+        animeDetail: details,
       ),
     );
   }
