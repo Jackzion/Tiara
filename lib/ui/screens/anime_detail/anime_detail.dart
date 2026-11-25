@@ -280,9 +280,23 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
       onNovelChapterTap: resume == null
           ? null
           : (chapter) => _openNovelChapter(resume, details, chapter),
-      onWatchTap: () => details.isBook
-          ? _openBookEntryChooser(details)
-          : _openSourceSheet(details, preferredEpisode: null),
+      onWatchTap: () {
+        switch (details.type) {
+          case 'TV':
+            _openSourceSheet(details);
+            break;
+          case '漫画':
+            _openComicSourceSheet(details);
+            break;
+          case '小说':
+            _openNovelSourceSheet(details);
+            break;
+          default:
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text('不支持的播放类型：${details.type!}')));
+            break;
+        }
+      },
       onTagTap: (genre) {
         final container = ProviderScope.containerOf(context, listen: false);
         container.read(currentNavIndexProvider.notifier).goTo(1);
@@ -519,7 +533,7 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
         epId: selection.epId,
         title: selection.title,
         epTitle: selection.epTitle,
-        animeDetail: details
+        animeDetail: details,
       ),
     );
     if (!mounted) return;

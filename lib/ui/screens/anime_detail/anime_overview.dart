@@ -108,15 +108,26 @@ class _AnimeOverviewState extends ConsumerState<AnimeOverview> {
         ArchiveSection(
           title: '章节',
           code: '02 / CHAPTERS',
-          trailing: ArchivePillButton(
-            label: _hasResume
-                ? (details.isBook ? '继续阅读' : '继续观看')
-                : (details.isBook ? '开始阅读' : '开始观看'),
-            icon: Icons.play_arrow_rounded,
-            height: 40,
-            onPressed: _hasResume && widget.onResume != null
-                ? widget.onResume
-                : widget.onWatchTap,
+          trailing: Row(
+            children: [
+              ArchivePillButton(
+                label: '获取资源',
+                icon: Icons.play_arrow_rounded,
+                height: 40,
+                onPressed: widget.onWatchTap,
+              ),
+              const SizedBox(width: 64),
+              ArchivePillButton(
+                label: _hasResume
+                    ? (details.isBook ? '继续阅读' : '继续观看')
+                    : (details.isBook ? '开始阅读' : '开始观看'),
+                icon: Icons.play_arrow_rounded,
+                height: 40,
+                onPressed: _hasResume && widget.onResume != null
+                    ? widget.onResume
+                    : widget.onWatchTap,
+              ),
+            ],
           ),
         ),
         if (_hasResume) ...[
