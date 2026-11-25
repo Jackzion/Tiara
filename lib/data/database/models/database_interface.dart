@@ -36,6 +36,9 @@ abstract class IDatabase {
     required String bookId,
   });
 
+  /// 删除一条书库记录（uid 幂等键）；不存在时静默返回
+  Future<void> deleteByUid(String uid);
+
   // ── 详情快照缓存（纯缓存，可整表清理）───────────────
 
   Future<CachedSubject?> readSubjectCache(int bangumiId);

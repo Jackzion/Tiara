@@ -61,19 +61,37 @@ class LibraryRepository {
     String? posterUrl
   }) async {
     if (sourceKey.isEmpty || comicId.isEmpty || epId.isEmpty) return;
+    var key = bangumiId;
+    var kind = type;
+    var poster = posterUrl;
+    if (key == null) {
+      final existing = await database.findComic(
+        sourceKey: sourceKey,
+        comicId: comicId,
+      );
+      if (existing != null) {
+        key = existing.bangumiId;
+        kind ??= existing.type;
+        poster ??= existing.posterUrl;
+      }
+    }
+
     await database.savePlay(
       LibraryPlayUpdate(
-        uid: bangumiId == null ? 'comic:$sourceKey:$comicId' : '$bangumiId',
-        type: type,
+        uid: key == null ? 'comic:$sourceKey:$comicId' : '$key',
+        type: kind,
         title: title,
-        bangumiId: bangumiId,
+        bangumiId: key,
         sourceKey: sourceKey,
         remoteId: comicId,
         lastUnitId: epId,
         lastUnitTitle: epTitle,
-        posterUrl: posterUrl
+        posterUrl: poster
       ),
     );
+    if (key != null) {
+      await database.deleteByUid('comic:$sourceKey:$comicId');
+    }
   }
 
   /// 进入小说阅读器时调用：记住上次读到的章 + 章内位置（进度 JSON 塞 playParamsJson）。

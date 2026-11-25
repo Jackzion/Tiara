@@ -9,6 +9,7 @@ import 'package:movies/data/models/novel_source.dart';
 import 'package:movies/data/models/play_context.dart';
 import 'package:movies/providers.dart';
 import 'package:movies/router/app_routes.dart';
+import 'package:movies/router/resume_navigator.dart';
 import 'package:movies/state/anime_detail_controller.dart';
 import 'package:movies/state/main_nav_index.dart';
 import 'package:movies/state/search_state.dart';
@@ -266,7 +267,16 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
       onEpisodeTap: (ep) => _openSourceSheet(details, preferredEpisode: ep),
       onComicEpisodeTap: resume == null
           ? null
-          : (ep) => _openComicEpisode(resume, details, ep),
+          : (resume, epId) async {
+              await context.openComicReader(
+                resume,
+                epId: epId,
+                animeDetail: details,
+              );
+              if (!mounted) return;
+              // 回到详情页：刷新「上次看到哪」与目录里的当前话高亮
+              ref.invalidate(animeResumeProvider(widget.animeId));
+            },
       onNovelChapterTap: resume == null
           ? null
           : (chapter) => _openNovelChapter(resume, details, chapter),
@@ -432,36 +442,6 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
     ref.invalidate(animeResumeProvider(widget.animeId));
   }
 
-  /// 打开视频源选择器
-  /// 漫画章节直跳：resume 当前线路的第 [episode] 话（1-based）直接进阅读器
-  Future<void> _openComicEpisode(
-    LibraryResume resume,
-    AnimeDetails details,
-    int episode,
-  ) async {
-    final roads = decodeRoads(resume.roadsJson);
-    if (roads.isEmpty || resume.sourceKey == null || resume.remoteId == null) {
-      return;
-    }
-    final road = roads[resume.lastRoadIndex.clamp(0, roads.length - 1)];
-    final i = episode - 1;
-    if (i < 0 || i >= road.data.length) return;
-    await context.router.push(
-      ComicReaderRoute(
-        sourceKey: resume.sourceKey!,
-        comicId: resume.remoteId!,
-        epId: road.data[i],
-        title: resume.title,
-        epTitle: i < road.identifier.length && road.identifier[i].isNotEmpty
-            ? road.identifier[i]
-            : '第 $episode 话',
-        animeDetail: details,
-      ),
-    );
-    if (!mounted) return;
-    ref.invalidate(animeResumeProvider(widget.animeId));
-  }
-
   /// 小说章节直跳：novel source 目录里的章直接进阅读器
   Future<void> _openNovelChapter(
     LibraryResume resume,
@@ -532,7 +512,7 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
       animeTitle: details.title ?? keyword,
     );
     if (selection == null || !mounted) return;
-    context.router.push(
+    await context.router.push(
       ComicReaderRoute(
         sourceKey: selection.sourceKey,
         comicId: selection.comicId,
@@ -542,6 +522,9 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
         animeDetail: details
       ),
     );
+    if (!mounted) return;
+    // 重查 resume，更新目录信息
+    ref.invalidate(animeResumeProvider(widget.animeId));
   }
 
   /// 书籍入口分流：漫画还是小说（BGM 书籍条目两者皆有可能）
@@ -594,7 +577,7 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
       animeTitle: details.title ?? keyword,
     );
     if (selection == null || !mounted) return;
-    context.router.push(
+    await context.router.push(
       NovelReaderRoute(
         sourceKey: selection.sourceKey,
         bookId: selection.bookId,
@@ -604,6 +587,8 @@ class _AnimeDetailState extends ConsumerState<AnimeDetail> {
         animeDetail: details,
       ),
     );
+    if (!mounted) return;
+    ref.invalidate(animeResumeProvider(widget.animeId));
   }
 }
 

@@ -103,11 +103,10 @@ class DriftDatabase implements IDatabase {
       ),
       onConflict: DoUpdate(
         (old) => LibraryEntryCompanion(
-          // bangumiId 仅在提供时回填（历史记录可随下次保存治愈），
-          // 不提供则保留原值 —— 漫画/小说的老记录就是靠这条回填的
           bangumiId: update.bangumiId != null
               ? Value(update.bangumiId!)
               : const Value.absent(),
+          type: update.type != null ? Value(update.type!) : const Value.absent(),
           title: Value(update.title),
           posterUrl: update.posterUrl != null
               ? Value(update.posterUrl!)
@@ -164,10 +163,24 @@ class DriftDatabase implements IDatabase {
   Future<LibraryResume?> _findBySource(String sourceKey, String remoteId) async {
     final row = await (animeDatabase.select(animeDatabase.libraryEntry)
           ..where((t) => t.sourceKey.equals(sourceKey) & t.remoteId.equals(remoteId))
-          ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])
+          ..orderBy([
+            (t) => OrderingTerm(
+              expression: t.bangumiId.isNull(),
+              mode: OrderingMode.asc,
+            ),
+            (t) => OrderingTerm.desc(t.updatedAt),
+          ])
           ..limit(1))
         .getSingleOrNull();
     return row == null ? null : _toResume(row);
+  }
+
+  /// 删除一条书库记录（uid 幂等键）；不存在时静默返回
+  @override
+  Future<void> deleteByUid(String uid) async {
+    await (animeDatabase.delete(
+      animeDatabase.libraryEntry,
+    )..where((t) => t.uid.equals(uid))).go();
   }
 
   Future<LibraryResume?> _findByUid(String uid) async {

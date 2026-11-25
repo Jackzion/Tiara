@@ -30,7 +30,7 @@ void main() async {
 
   // debug 下每 30s 打一次内存概况，方便对比优化前后（release 不执行）
   if (kDebugMode) {
-    Timer.periodic(const Duration(seconds: 30), (_) {
+    Timer.periodic(const Duration(seconds: 120), (_) {
       final cache = PaintingBinding.instance.imageCache;
       debugPrint(
         '[mem] rss=${ProcessInfo.currentRss ~/ (1 << 20)}MB '

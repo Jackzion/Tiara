@@ -3,10 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:movies/data/database/models/database_models.dart';
 import 'package:movies/data/database/models/library_models.dart';
-import 'package:movies/data/library/library_codec.dart';
-import 'package:movies/data/models/play_context.dart';
 import 'package:movies/providers.dart';
 import 'package:movies/router/app_routes.dart';
+import 'package:movies/router/resume_navigator.dart';
 import 'package:movies/state/favorite_controller.dart';
 import 'package:movies/ui/screens/genres/sort_picker.dart';
 import 'package:movies/ui/theme/archive_tokens.dart';
@@ -62,9 +61,8 @@ class _FavoriteScreenState extends ConsumerState<FavoriteScreen> {
                       child: CustomScrollView(
                         slivers: [
                           SliverPadding(
-                            padding: archivePagePadding(
-                              context,
-                            ).copyWith(bottom: 0),
+                            padding: archivePagePadding(context)
+                                .copyWith(bottom: 0),
                             sliver: SliverToBoxAdapter(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -86,9 +84,8 @@ class _FavoriteScreenState extends ConsumerState<FavoriteScreen> {
                                         itemBuilder: (context, index) =>
                                             _ResumeCard(
                                               resume: recent[index],
-                                              onTap: () => _openResume(
-                                                recent[index],
-                                              ),
+                                              onTap: () =>
+                                                  context.openLibraryResume(recent[index]),
                                             ),
                                       ),
                                     ),
@@ -108,8 +105,7 @@ class _FavoriteScreenState extends ConsumerState<FavoriteScreen> {
                                     onSortSelected: (sorting) {
                                       ref
                                           .read(
-                                            favoriteControllerProvider
-                                                .notifier,
+                                            favoriteControllerProvider.notifier,
                                           )
                                           .setSort(sorting);
                                     },
@@ -165,51 +161,6 @@ class _FavoriteScreenState extends ConsumerState<FavoriteScreen> {
       ),
     );
   }
-
-  /// 直接进入：漫画走阅读器，动画用存下来的规则+线路重建 PlayContext
-  void _openResume(LibraryResume resume) {
-    if (resume.isComic) {
-      final sourceKey = resume.sourceKey;
-      final comicId = resume.remoteId;
-      final epId = resume.lastUnitId;
-      if (sourceKey == null || comicId == null || epId == null) return;
-      context.router.push(
-        ComicReaderRoute(
-          sourceKey: sourceKey,
-          comicId: comicId,
-          epId: epId,
-          title: resume.title,
-          epTitle: resume.lastUnitTitle ?? '',
-        ),
-      );
-      return;
-    }
-
-    final rule = decodeRule(resume.ruleJson);
-    final roads = decodeRoads(resume.roadsJson);
-    if (rule == null || roads.isEmpty) {
-      // 上下文不完整（旧数据 / 规则已删）：退回详情页重新选源
-      if (resume.bangumiId != null) {
-        context.router.push(AnimeDetailRoute(animeId: resume.bangumiId!));
-      }
-      return;
-    }
-    context.router.push(
-      VideoPageRoute(
-        animeVideo: '',
-        playContext: PlayContext(
-          animeId: resume.bangumiId ?? 0,
-          title: resume.title,
-          detailUrl: resume.detailUrl ?? '',
-          roads: roads,
-          rule: rule,
-          preferredEpisode: resume.lastEpisode,
-          preferredRoadIndex: resume.lastRoadIndex,
-        ),
-        animeDetail: null
-      ),
-    );
-  }
 }
 
 /// 继续观看卡片：海报 + 标题 + 「第 N 集 / 话名」
@@ -244,7 +195,11 @@ class _ResumeCard extends StatelessWidget {
               ),
               clipBehavior: Clip.antiAlias,
               child: (resume.posterUrl ?? '').isEmpty
-                  ? Icon(Icons.movie_filter_outlined, color: tone.muted, size: 22)
+                  ? Icon(
+                      Icons.movie_filter_outlined,
+                      color: tone.muted,
+                      size: 22,
+                    )
                   : Image.network(
                       resume.posterUrl!,
                       cacheWidth: 240,

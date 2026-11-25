@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:movies/data/database/models/library_models.dart';
-import 'package:movies/data/database/models/rules_model.dart';
-import 'package:movies/data/library/library_codec.dart';
 import 'package:movies/data/models/anime_details.dart';
+import 'package:movies/data/models/comic_source.dart';
 import 'package:movies/data/models/genre.dart';
 import 'package:movies/data/models/novel_source.dart';
 import 'package:movies/providers.dart';
@@ -28,8 +27,8 @@ class AnimeOverview extends ConsumerStatefulWidget {
   /// 「开始观看」等：不带集号
   final VoidCallback? onWatchTap;
 
-  /// 漫画：点话号（1-based，当前线路）直接进阅读器（resume 存在时可用）
-  final void Function(int episode)? onComicEpisodeTap;
+  /// 漫画：点目录里的某一话（epId）直接进阅读器（resume 存在时可用）
+  final void Function(LibraryResume resume, String epId)? onComicEpisodeTap;
 
   /// 小说：点章直接进阅读器（resume 存在时可用）
   final void Function(NovelChapter chapter)? onNovelChapterTap;
@@ -66,13 +65,7 @@ class AnimeOverview extends ConsumerStatefulWidget {
 }
 
 class _AnimeOverviewState extends ConsumerState<AnimeOverview> {
-  bool _expandedChapters = false;
   bool _expandedTags = false;
-
-  String _pad(int n) => n.toString().padLeft(2, '0');
-
-  /// 章节区数据源：resume 里记录的线路（roads.data = 每话分集 URL）
-  List<Road> get _resumeRoads => decodeRoads(widget.resume?.roadsJson);
 
   bool get _hasResume =>
       widget.resume != null &&
@@ -135,19 +128,18 @@ class _AnimeOverviewState extends ConsumerState<AnimeOverview> {
           ),
         ],
         const SizedBox(height: 14),
-        // 原 bangumi 话数格子已下线：只有存在浏览历史才显示章节 UI，
-        // 并按 resume.type（details.type 字符串）分流 —— 漫画（roads 话数）、小说（source 目录）。
-        if (resume != null && resume.isComic)
+        if (resume != null && resume.isComic) ...[
           ArchiveSynopsisBlock(
-            code: '01 / SYNOPSIS',
-            title: '剧情简介',
+            code: 'CATALOG',
+            title: '漫画章节',
             collapsedHeight: 200,
             child: _buildComicChapterList(resume),
           ),
+        ],
         if (resume != null && resume.isNovel)
           ArchiveSynopsisBlock(
-            code: '01 / SYNOPSIS',
-            title: '剧情简介',
+            code: 'CATALOG',
+            title: '小说章节',
             collapsedHeight: 200,
             child: _buildNovelChapterList(resume),
           ),
@@ -179,6 +171,12 @@ class _AnimeOverviewState extends ConsumerState<AnimeOverview> {
   /// 小说目录 Future（按 source 惰性取一次）
   Future<List<NovelChapter>>? _novelChaptersFuture;
 
+  /// 漫画目录 Future（按 source 惰性取一次）
+  Future<List<ComicChapter>>? _comicChaptersFuture;
+
+  /// 上面那份 Future 对应的 source|comicId，变了就要重拉（换源/首次为空）
+  String? _comicChaptersKey;
+
   Future<List<NovelChapter>> _loadNovelChapters(LibraryResume resume) async {
     final sourceKey = resume.sourceKey;
     final bookId = resume.remoteId;
@@ -194,37 +192,70 @@ class _AnimeOverviewState extends ConsumerState<AnimeOverview> {
     }
   }
 
-  /// 漫画章节区：话数来自 resume 记录的线路（roads.data = 分集 URL）
-  Widget _buildComicChapterList(LibraryResume resume) {
-    final roads = _resumeRoads;
-    if (roads.isEmpty) return const SizedBox.shrink();
-    final roadIndex = resume.lastRoadIndex.clamp(0, roads.length - 1);
-    final count = roads[roadIndex].data.length;
-    if (count == 0) return const SizedBox.shrink();
-    final limit = _expandedChapters || count <= 24 ? count : 24;
-    final tone = ArchiveTone.of(context);
+  Future<List<ComicChapter>> _loadComicChapters(LibraryResume resume) async {
+    final sourceKey = resume.sourceKey;
+    final comicId = resume.remoteId;
+    if (sourceKey == null || comicId == null) {
+      throw StateError('缺少图源上下文（sourceKey / comicId）');
+    }
+    final repo = await ref.read(comicRepositoryProvider.future);
+    try {
+      return await repo.loadChapters(sourceKey, comicId);
+    } catch (e) {
+      // 规则没装（sources[key] 空指针）/ 210 限频 / 网络失败都落到这里，
+      // 交给 FutureBuilder 显示，不再静默变成空列表
+      throw StateError('目录加载失败：$e');
+    }
+  }
 
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      children: [
-        for (var n = 1; n <= limit; n++)
-          _ChapterChip(
-            label: _pad(n),
-            // 上次看到的那一话用墨底标出来
-            highlight: n == resume.lastEpisode,
-            onTap: () => widget.onComicEpisodeTap?.call(n),
-          ),
-        if (count > limit)
-          ArchiveTextButton(
-            onPressed: () =>
-                setState(() => _expandedChapters = !_expandedChapters),
-            child: Text(
-              '还有 ${count - limit} 话',
-              style: ArchiveType.micro.copyWith(color: tone.muted),
-            ),
-          ),
-      ],
+  /// 清掉缓存的目录 Future，让下一帧重新拉（错误重试用）
+  void _retryComicChapters() {
+    setState(() {
+      _comicChaptersKey = null;
+      _comicChaptersFuture = null;
+    });
+  }
+
+  /// comic 章节区：目录来自 comic source
+  Widget _buildComicChapterList(LibraryResume resume) {
+    final key = '${resume.sourceKey}|${resume.remoteId}';
+    if (_comicChaptersKey != key) {
+      _comicChaptersKey = key;
+      _comicChaptersFuture = _loadComicChapters(resume);
+    }
+    return FutureBuilder<List<ComicChapter>>(
+      future: _comicChaptersFuture,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return _ChapterLoadError(
+            message: '目录加载失败 · 检查图源规则',
+            onRetry: _retryComicChapters,
+          );
+        }
+        if (!snapshot.hasData) {
+          return ArchiveChapterListSkeleton(
+            height: widget.fillHeight ? 380 : 320,
+          );
+        }
+        final chapters = snapshot.data!;
+        if (chapters.isEmpty) {
+          return _ChapterLoadError(
+            message: '目录为空 · 该图源没有返回章节',
+            onRetry: _retryComicChapters,
+          );
+        }
+        // id 用 epId：ArchiveChapterList 的 currentId 高亮和阅读器跳转都以它为准
+        return ArchiveChapterList(
+          chapters: [
+            for (final chapter in chapters)
+              ArchiveChapterEntry(id: chapter.epId, title: chapter.title),
+          ],
+          currentId: resume.lastUnitId,
+          onTap: widget.onComicEpisodeTap == null
+              ? null
+              : (entry) => widget.onComicEpisodeTap!(resume, entry.id),
+        );
+      },
     );
   }
 
@@ -349,51 +380,30 @@ class _ExpandIcon extends StatelessWidget {
   }
 }
 
-/// 章节号：纸底 mono 编号，悬停变深，没有渐变与投影。
-/// [highlight] 为 true 时用墨底奶白字标出「上次看到」的那一集。
-class _ChapterChip extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  final bool highlight;
+/// 目录加载失败 / 空态：一行说明 + 重试，不打断页面其余部分。
+class _ChapterLoadError extends StatelessWidget {
+  const _ChapterLoadError({required this.onRetry, required this.message});
 
-  const _ChapterChip({
-    required this.label,
-    required this.onTap,
-    this.highlight = false,
-  });
+  final String message;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
     final tone = ArchiveTone.of(context);
-    return SizedBox(
-      width: 40,
-      height: 30,
-      child: Material(
-        color: highlight ? tone.ink : tone.milk,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(ArchiveGeometry.coverRadius),
-          side: BorderSide(
-            color: highlight ? tone.ink : tone.hairline,
-            width: ArchiveGeometry.hairlineWidth,
-          ),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          hoverColor: tone.raisedHigh,
-          splashFactory: NoSplash.splashFactory,
-          highlightColor: Colors.transparent,
-          child: Center(
+    return PaperPanel(
+      padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+      child: Row(
+        children: [
+          Expanded(
             child: Text(
-              label,
-              style: ArchiveType.code.copyWith(
-                fontSize: 11,
-                color: highlight ? tone.milk : tone.ink,
-                letterSpacing: 0.4,
-              ),
+              message,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: ArchiveType.meta.copyWith(color: tone.muted),
             ),
           ),
-        ),
+          ArchiveTextButton(onPressed: onRetry, child: const Text('重试')),
+        ],
       ),
     );
   }
